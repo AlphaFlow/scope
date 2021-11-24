@@ -2,7 +2,7 @@
 
 For all examples in this file, refer to the following resource
 
-```
+```go
 type foo {
     bar: string
     baz: int
@@ -89,7 +89,7 @@ Let’s jump right into the examples which should be enough context for most fil
 
 Some resources may also have custom filter columns or sort columns.  Defined in the example below is a custom filter column for the foo model.
 
-```
+```go
 func (f foo) GetCustomFilters() CustomColumns {
     baz_bar_filter := scope.CustomColumn{
     Name:       "baz_bar",

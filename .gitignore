@@ -1,0 +1,12 @@
+/vendor/
+.idea/
+/bin/
+/tmp/
+.vscode/
+.env
+
+migrations/schema.sql
+
+# Ignore coverage reports
+coverage.txt
+coverage-summary.txt

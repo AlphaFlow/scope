@@ -45,7 +45,7 @@ jobs:
         run: |
           # Check files
           git fetch origin dev
-          FILES=$(git diff-tree --diff-filter=d --no-commit-id --name-only -r origin/dev HEAD |
+          FILES=$(git diff-tree --diff-filter=d --no-commit-id --name-only -r origin/main HEAD |
              grep '.go$' | xargs goimports -local "github.com/alphaflow/scope" -l 2>&1)
           if [ -n "$FILES" ]; then
             echo "go imports needs to be run on $FILES" >&2

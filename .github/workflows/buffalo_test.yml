@@ -44,7 +44,7 @@ jobs:
       - name: lint files
         run: |
           # Check files
-          git fetch origin dev
+          git fetch origin main
           FILES=$(git diff-tree --diff-filter=d --no-commit-id --name-only -r origin/main HEAD |
              grep '.go$' | xargs goimports -local "github.com/alphaflow/scope" -l 2>&1)
           if [ -n "$FILES" ]; then

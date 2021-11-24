@@ -3,7 +3,7 @@ module github.com/alphaflow/scope
 go 1.15
 
 require (
-	github.com/gobuffalo/buffalo v0.17.5
+	github.com/gobuffalo/buffalo v0.16.15
 	github.com/gobuffalo/nulls v0.4.1
 	github.com/gobuffalo/pop/v5 v5.3.4
 	github.com/gobuffalo/suite/v3 v3.0.2

@@ -1,0 +1,104 @@
+name: Run buffalo tests
+on:
+  push:
+    branches:
+      - '**'
+      - '!dev'
+      - '!master'
+
+jobs:
+  # Label of the container job
+  buffalo-test:
+    # Containers must run in Linux based operating systems
+    runs-on: ubuntu-latest
+
+    # Docker Hub image that `container-job` executes in
+    container: alphaflow/buffalo:v0.16.15
+
+    # Service containers to run with `container-job`
+    services:
+      # Label used to access the service container
+      postgres:
+        # Docker Hub image
+        image: postgres:11-alpine
+        # Provide the password for postgres
+        env:
+          "PGPORT": 5432
+          "POSTGRES_DB": "test"
+          "POSTGRES_USER": "postgres"
+          "POSTGRES_PASSWORD": "12cae32d2966bf12"
+
+        # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # Downloads a copy of the code in your repository before running CI tests
+      - name: Check out repository code
+        uses: actions/checkout@v2
+
+      # Runs go-imports to validate that files are both correctly formatted and their imports are sorted
+      - name: lint files
+        run: |
+          # Check files
+          git fetch origin dev
+          FILES=$(git diff-tree --diff-filter=d --no-commit-id --name-only -r origin/dev HEAD |
+             grep '.go$' | xargs goimports -local "github.com/alphaflow/scope" -l 2>&1)
+          if [ -n "$FILES" ]; then
+            echo "go imports needs to be run on $FILES" >&2
+            exit 1
+          fi
+        env:
+          "GO_ENV": "test"
+          "GOPATH": "/__w"
+          "PATH": "/go/bin:/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+      # Installs all required go-modules
+      - name: fetch dependencies
+        run: |
+          echo "machine github.com login ${CI_GITHUB_USERNAME} password ${CI_GITHUB_ACCESS_TOKEN}" >> $HOME/.netrc
+          go mod tidy
+        env:
+          "GO_ENV": "test"
+          "GO111MODULE": "on"
+          "GOPATH": "/__w"
+          "GOPRIVATE": "github.com/alphaflow/*,github.com/AlphaFlow/*"
+          "PATH": "/go/bin:/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+          "CI_GITHUB_USERNAME": "${{ secrets.CI_GITHUB_USERNAME }}"
+          "CI_GITHUB_ACCESS_TOKEN": "${{ secrets.CI_GITHUB_ACCESS_TOKEN }}"
+
+      # Runs our test suite
+      - name: run tests
+        run: |
+          buffalo-pop pop reset -e test
+          go test -p 1 -timeout 1800s -tags development ./...
+        env:
+          "GO_ENV": "test"
+          "GO111MODULE": "on"
+          "GOPATH": "/__w"
+          "GOPRIVATE": "github.com/alphaflow/*,github.com/AlphaFlow/*"
+          "PATH": "/go/bin:/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+          "TEST_DATABASE_URL": "postgres://postgres:12cae32d2966bf12@postgres:5432/test?sslmode=disable"
+
+      - name: Slack Notification Passed
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_USERNAME: "Github Actions Bot"
+          SLACK_ICON: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+          SLACK_TITLE: "All steps passed"
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_FOOTER: "${{github.repository}}"
+
+      - name: Slack Notification Failed
+        if: ${{ failure() }}
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_USERNAME: "Github Actions Bot"
+          SLACK_ICON: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+          SLACK_COLOR: "#ff0000"
+          SLACK_TITLE: "Steps failed"
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_FOOTER: "${{github.repository}}"

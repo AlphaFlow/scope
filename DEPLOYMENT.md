@@ -9,24 +9,24 @@ also need their `go.mod` file updated so that they can access the new code.
 ### Create a pull request
 First, create a pull request for your feature branch.  Have this PR reviewed.
 
-### Merge branches (feature -> dev)
+### Merge branches (feature -> main)
 
 Merge your approved PR on GitHub into dev by squashing commits. Then delete the merged feature branch. 
 
 ### Tag the release
 
-Switch to the `dev` branch locally. Then pull in updates:
+Switch to the `main` branch locally. Then pull in updates:
 
 ```bash
-git checkout dev
-git pull origin dev
+git checkout main
+git pull origin main
 ```
 
 We use an [annotated tag](https://git-scm.com/book/en/v2/Git-Basics-Tagging) to tag the release.
 Tag the release, following the format below:
 
 ```bash
-git tag -a vX.y.z -m "Release X.y.z. Add date package."
+git tag -a vX.y.z -m "Release X.y.z. Add filtering."
 ```
 
 Things to note:
@@ -37,14 +37,5 @@ Things to note:
 Push tags:
 
 ```bash
-git push origin dev --tags
-```
-
-### Merge branches (dev -> master)
-
-```bash
-git checkout master
-git pull origin master
-git merge dev
-git push origin master
+git push origin main --tags
 ```

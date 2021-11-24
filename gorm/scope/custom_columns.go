@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/gobuffalo/pop/v5"
-
 	"github.com/alphaflow/scope/util"
 )
 
 // CustomColumn represents a SQL statement that can be used like a column in a SQL query. CustomColumns are used in order
-// to create filter and sort options the are more complex than simply sorting on a single field.  For example:
+// to create filter and sort options that are more complex than simply sorting on a single field.  For example:
 //
 // Given an object with a db column 'test_int', in order to sort on the TEXT converted value of 'test_int' you would
 // implement 'CustomSortable' and provide the CustomColumn:
@@ -201,8 +199,7 @@ func GenerateCustomColumnsForSubobject(subobjectPtr interface{}, subobjectJsonTa
 		if len(optionalTablename) > 0 {
 			tablename = optionalTablename[0]
 		} else {
-			m := &pop.Model{Value: subobject}
-			tablename = m.TableName()
+			tablename = TableName(subobject)
 		}
 
 		customColumn := CustomColumn{
@@ -230,7 +227,7 @@ func getAllQueryableColumns(modelPtr interface{}) ([]CustomColumn, error) {
 	}
 
 	// Fetch the associated table for this model.
-	tableName := (&pop.Model{Value: modelPtr}).TableName()
+	tableName := TableName(modelPtr)
 
 	model := v.Elem().Interface()
 

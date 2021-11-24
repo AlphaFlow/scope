@@ -1,4 +1,4 @@
-#Usage and Example Resource
+# Usage and Example Resource
 
 For all examples in this file, refer to the following resource
 
@@ -11,9 +11,9 @@ type foo {
 }
 ```
 
-##Filtering
+## Filtering
 
-###Examples
+### Examples
 
 Let’s jump right into the examples which should be enough context for most filtering needs. Refer to the in-depth Parameters section below for more detail.
 
@@ -26,7 +26,7 @@ Let’s jump right into the examples which should be enough context for most fil
 - `filter_columns=bar|baz|zap&filter_types=EQ|NE|LT&filter_values=test|1|2&filter_logic=OR|AND`
   - returns all resources where `bar = test OR baz != 1 AND zap < 2`
 
-#Parameters
+# Parameters
 
  - `filter_columns`
    - Specifies the fields that should be filtered on
@@ -85,7 +85,7 @@ Let’s jump right into the examples which should be enough context for most fil
    - filter_right_parens indicates all clauses that have a right parenthesis after them.   There must be opening filter_left_parens as well.
    - ex. `filter_left_parens=0|1|2`, `filter_right_parens=2|2|2` would generate a query select x where `(clause[0] AND (clause[1] AND (clause[2])))`
 
-#Custom Columns
+# Custom Columns
 
 Some resources may also have custom filter columns or sort columns.  Defined in the example below is a custom filter column for the foo model.
 
@@ -105,22 +105,22 @@ A custom column can be used as an entry in `filter_columns` if it is returned by
 
 A custom column can be used as an entry in `sort_columns` if it is returned by `GetCustomSorts`.
 
-###Example
+### Example
 
  - `filter_columns=baz_bar&filter_types=EQ&filter_values=12test`
    - returns all resources where `baz = 12` and `bar = test`
    - and returns all `baz = 1` and `bar = 2test`
 
-##Filter Options
+## Filter Options
 
 When we write an endpoint that uses the filtering options above, we will provide an additional endpoint with the path suffix `.../filter_options`.   This endpoint is used to fetch all of the available values for that field.
 
-#Example
+# Example
 
  - `GET /foos/filter_options?filter_column='bar'`
    - Returns all unique values of `bar` on all `foo`s that would be returned by a call to `GET /foo`
 
-#Sorting
+# Sorting
 
  - `sort_columns`
    - Specifies the fields that should be sorted on
@@ -135,7 +135,7 @@ When we write an endpoint that uses the filtering options above, we will provide
      - `ASC`: the values in `sort_columns` will be sorted with smallest values first.
      - `DESC`: the values in `sort_columns` will be sorted with largest values first.
 
-#Aggregations
+# Aggregations
 
  - `aggregation_column`
    - Specifies the fields that should be aggregated
@@ -154,7 +154,7 @@ When we write an endpoint that uses the filtering options above, we will provide
      - `MAX`: Gets the maximum of the values in `aggregation_column`.
      - `COUNT`: Returns the number of rows returned.
 
-###Example
+### Example
 
  - `GET /foos/aggregate?aggregation_column='bar'&aggregation_type='SUM'`
    - Returns the numeric sum of `bar` on all `foo`s that would be returned by a call to `GET /foo`
@@ -162,7 +162,7 @@ When we write an endpoint that uses the filtering options above, we will provide
  - `GET /foos/grouped_aggregate?aggregation_column='bar'&aggregation_type='COUNT'&aggregation_grouper_column='bax'`
    - Returns the count of `bar` on all `foo`s that would be returned by a call to `GET /foo` grouped into buckets by the values in `bax`.    Will return a list of tuples with the of the format `[{“grouper”:{{value_in_bax_1}}, “result”:1} … ]`
 
-#Pagination
+# Pagination
 
 This package uses the default pagination utility provided by Go Buffalo.
 https://github.com/gobuffalo/pop/blob/master/paginator.go

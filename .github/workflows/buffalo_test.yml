@@ -82,23 +82,3 @@ jobs:
           "GOPRIVATE": "github.com/alphaflow/*,github.com/AlphaFlow/*"
           "PATH": "/go/bin:/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
           "TEST_DATABASE_URL": "postgres://postgres:12cae32d2966bf12@postgres:5432/test?sslmode=disable"
-
-      - name: Slack Notification Passed
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_USERNAME: "Github Actions Bot"
-          SLACK_ICON: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
-          SLACK_TITLE: "All steps passed"
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-          SLACK_FOOTER: "${{github.repository}}"
-
-      - name: Slack Notification Failed
-        if: ${{ failure() }}
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_USERNAME: "Github Actions Bot"
-          SLACK_ICON: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
-          SLACK_COLOR: "#ff0000"
-          SLACK_TITLE: "Steps failed"
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-          SLACK_FOOTER: "${{github.repository}}"

@@ -1,6 +1,6 @@
 ![Logo](https://www.alphaflow.com/wp-content/themes/Alphaflow/res/alphaflow-logo.png) 
 # Scope
-The primary purpose of the scope package is to provide scopes that can be easily attached to Pop queries.  Think `tx.Scope([scopeFunc]).All(&books)`.  
+The primary purpose of the scope package is to provide scopes that can be easily attached to Pop/Gorm (See gorm package) queries.  Think `tx.Scope([scopeFunc]).All(&books)`.
 
 This repository also contains a limited "query language" for use with Go Buffalo.  These scopes take query parameters and produce scope functions to generically manipulate `pop.Models`, see `scope.For[Filter|Sort|Paginate]FromParams(...)`. The `GetAggregationsFromParams` function serves a similar purpose of taking a set of query params and providing generic output, however because the result structure is different the aggregations execute a query to return the results for you.
 

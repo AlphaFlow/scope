@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/gobuffalo/buffalo"
-	"github.com/gobuffalo/pop/v5"
 	"github.com/pkg/errors"
+	"gorm.io/gorm"
 
 	"github.com/alphaflow/scope/util"
 )
@@ -72,7 +72,7 @@ type groupedAggregationsQueryResult struct {
 }
 
 // GetAggregationsFromParams aggregates a modelsPtr based on params, restricting by the scope collection scopes.
-func GetAggregationsFromParams(ctx context.Context, tx *pop.Connection, modelsPtr interface{}, params buffalo.ParamValues, scopes *Collection) (interface{}, error) {
+func GetAggregationsFromParams(ctx context.Context, tx *gorm.DB, modelsPtr interface{}, params buffalo.ParamValues, scopes *Collection) (interface{}, error) {
 	aggregation, ok := StandardAggregations[StandardAggregationsType(strings.ToUpper(params.Get("aggregation_type")))]
 	if !ok {
 		return nil, errors.New("unknown aggregation type")
@@ -87,7 +87,7 @@ func GetAggregationsFromParams(ctx context.Context, tx *pop.Connection, modelsPt
 }
 
 // GetGroupedAggregationsFromParams groups and aggregates a modelsPtr based on params, restricting by the scope collection scopes.
-func GetGroupedAggregationsFromParams(ctx context.Context, tx *pop.Connection, modelsPtr interface{}, params buffalo.ParamValues, scopes *Collection) ([]interface{}, error) {
+func GetGroupedAggregationsFromParams(ctx context.Context, tx *gorm.DB, modelsPtr interface{}, params buffalo.ParamValues, scopes *Collection) ([]interface{}, error) {
 	aggregation, ok := StandardAggregations[StandardAggregationsType(strings.ToUpper(params.Get("aggregation_type")))]
 	if !ok {
 		return nil, errors.New("unknown aggregation type")
@@ -106,7 +106,7 @@ func GetGroupedAggregationsFromParams(ctx context.Context, tx *pop.Connection, m
 //
 // `columnName` is either a CustomColumn returned by the CustomFilterable interface, or a field specified by the json
 // tag.  This is the same as the acceptable values for `filter_columns` in ForFiltersFromParams.
-func GetAggregations(ctx context.Context, tx *pop.Connection, modelsPtr interface{}, columnName string, scopes *Collection, aggregation Aggregation) (interface{}, error) {
+func GetAggregations(ctx context.Context, tx *gorm.DB, modelsPtr interface{}, columnName string, scopes *Collection, aggregation Aggregation) (interface{}, error) {
 	v := reflect.ValueOf(modelsPtr)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Slice {
 		return nil, errors.New("pointer to slice expected")
@@ -132,7 +132,7 @@ func GetAggregations(ctx context.Context, tx *pop.Connection, modelsPtr interfac
 		return nil, errors.Errorf("invalid filter field: %v", columnName)
 	}
 
-	tableName := (&pop.Model{Value: modelPtr}).TableName()
+	tableName := TableName(modelPtr)
 	return getCustomAggregations(tx, tableName, *column, scopes, aggregation)
 }
 
@@ -141,7 +141,7 @@ func GetAggregations(ctx context.Context, tx *pop.Connection, modelsPtr interfac
 //
 // `columnName` is either a CustomColumn returned by the CustomFilterable interface, or a field specified by the json
 // tag.  This is the same as the acceptable values for `filter_columns` in ForFiltersFromParams.
-func GetGroupedAggregations(ctx context.Context, tx *pop.Connection, modelsPtr interface{}, columnName, grouperName string, scopes *Collection, aggregation Aggregation) ([]interface{}, error) {
+func GetGroupedAggregations(ctx context.Context, tx *gorm.DB, modelsPtr interface{}, columnName, grouperName string, scopes *Collection, aggregation Aggregation) ([]interface{}, error) {
 	v := reflect.ValueOf(modelsPtr)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Slice {
 		return nil, errors.New("pointer to slice expected")
@@ -176,7 +176,7 @@ func GetGroupedAggregations(ctx context.Context, tx *pop.Connection, modelsPtr i
 		return nil, errors.Errorf("invalid filter field: %v", grouperName)
 	}
 
-	tableName := (&pop.Model{Value: modelPtr}).TableName()
+	tableName := TableName(modelPtr)
 	return getCustomGroupedAggregations(tx, tableName, *column, *grouper, scopes, aggregation)
 }
 
@@ -185,8 +185,7 @@ func GetGroupedAggregations(ctx context.Context, tx *pop.Connection, modelsPtr i
 //
 // In order to do this, we must build a custom struct with the correct ResultType for customColumn.  We then build a
 // scoped GROUP BY query to retrieve all values for customColumn into that struct.
-func getCustomAggregations(tx *pop.Connection, tableName string, customColumn CustomColumn, scopes *Collection, aggregation Aggregation) (interface{}, error) {
-	type __stub__ struct{}
+func getCustomAggregations(tx *gorm.DB, tableName string, customColumn CustomColumn, scopes *Collection, aggregation Aggregation) (interface{}, error) {
 	clauses := ""
 
 	// We need to build a struct of type "ResultType", so that we can correctly marshall the output types from the DB.
@@ -213,9 +212,13 @@ func getCustomAggregations(tx *pop.Connection, tableName string, customColumn Cu
 		aggregationScopes.Push(scopes.scopes...)
 	}
 
-	scopeQueryFunc := aggregationScopes.Flatten()(tx.Q())
-	scopeQuerySQL, scopeQueryArgs := scopeQueryFunc.ToSQL(&pop.Model{Value: __stub__{}})
-	stubRegex := regexp.MustCompile(`^SELECT\s+FROM stubs AS stubs\s+`)
+	q := tx.Session(&gorm.Session{DryRun: true}).Model(__stub__{})
+	q.Statement.SQL.Reset()
+	scopeQueryFunc := aggregationScopes.Flatten()(q).Find(q.Statement.Model)
+	scopeQuerySQL := scopeQueryFunc.Statement.SQL.String()
+	scopeQuerySQL = strings.Replace(scopeQuerySQL, "SELECT *", "SELECT ", 1)
+	scopeQueryArgs := scopeQueryFunc.Statement.Vars
+	stubRegex := regexp.MustCompile(stubRegex)
 	clauses = stubRegex.ReplaceAllString(scopeQuerySQL, "")
 
 	// Strip all order by columns out of the query, since they don't matter.
@@ -223,7 +226,7 @@ func getCustomAggregations(tx *pop.Connection, tableName string, customColumn Cu
 	clauses = orderRegex.ReplaceAllString(clauses, "")
 
 	generatedStatement := fmt.Sprintf("SELECT %v(%v) AS result FROM %v %v", aggregation.Statement, customColumn.Statement, tableName, clauses)
-	err := tx.RawQuery(generatedStatement, scopeQueryArgs...).First(typedStructWithDBTag.Interface())
+	err := tx.Raw(generatedStatement, scopeQueryArgs...).First(typedStructWithDBTag.Interface()).Error
 	if err != nil {
 		return nil, err
 	}
@@ -236,8 +239,7 @@ func getCustomAggregations(tx *pop.Connection, tableName string, customColumn Cu
 //
 // In order to do this, we must build a custom struct with the correct ResultType for customColumn.  We then build a
 // scoped GROUP BY query to retrieve all values for customColumn into that struct.
-func getCustomGroupedAggregations(tx *pop.Connection, tableName string, customColumn, groupColumn CustomColumn, scopes *Collection, aggregation Aggregation) ([]interface{}, error) {
-	type __stub__ struct{}
+func getCustomGroupedAggregations(tx *gorm.DB, tableName string, customColumn, groupColumn CustomColumn, scopes *Collection, aggregation Aggregation) ([]interface{}, error) {
 	clauses := ""
 
 	// We need to build a struct of type "ResultType", so that we can correctly marshall the output types from the DB.
@@ -268,9 +270,13 @@ func getCustomGroupedAggregations(tx *pop.Connection, tableName string, customCo
 		aggregationScopes.Push(scopes.scopes...)
 	}
 
-	scopeQueryFunc := aggregationScopes.Flatten()(tx.Q())
-	scopeQuerySQL, scopeQueryArgs := scopeQueryFunc.ToSQL(&pop.Model{Value: __stub__{}})
-	stubRegex := regexp.MustCompile(`^SELECT\s+FROM stubs AS stubs\s+`)
+	q := tx.Session(&gorm.Session{DryRun: true}).Model(__stub__{})
+	q.Statement.SQL.Reset()
+	scopeQueryFunc := aggregationScopes.Flatten()(q).Find(q.Statement.Model)
+	scopeQuerySQL := scopeQueryFunc.Statement.SQL.String()
+	scopeQuerySQL = strings.Replace(scopeQuerySQL, "SELECT *", "SELECT ", 1)
+	scopeQueryArgs := scopeQueryFunc.Statement.Vars
+	stubRegex := regexp.MustCompile(stubRegex)
 	clauses = stubRegex.ReplaceAllString(scopeQuerySQL, "")
 
 	// Strip all order by columns out of the query, since they don't matter.
@@ -278,7 +284,7 @@ func getCustomGroupedAggregations(tx *pop.Connection, tableName string, customCo
 	clauses = orderRegex.ReplaceAllString(clauses, "")
 
 	generatedStatement := fmt.Sprintf("SELECT %v AS grouper, %v(%v) AS result FROM %v %v GROUP BY %v", groupColumn.Statement, aggregation.Statement, customColumn.Statement, tableName, clauses, groupColumn.Statement)
-	err := tx.RawQuery(generatedStatement, scopeQueryArgs...).All(typedStructArrayPtrWithDBTag.Interface())
+	err := tx.Raw(generatedStatement, scopeQueryArgs...).Find(typedStructArrayPtrWithDBTag.Interface()).Error
 	if err != nil {
 		return nil, err
 	}

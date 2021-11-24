@@ -2,21 +2,24 @@ package scope_test
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 
 	"github.com/gobuffalo/nulls"
+	"github.com/gofrs/uuid"
+	"gorm.io/gorm"
 
-	"github.com/alphaflow/scope"
+	"github.com/alphaflow/scope/gorm/scope"
 	"github.com/alphaflow/scope/util"
 )
 
 func (ss *ScopesSuite) TestGetAggregationsFromParams_Count() {
-	testObject := &TestObject{}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	params := map[string][]string{
@@ -30,12 +33,12 @@ func (ss *ScopesSuite) TestGetAggregationsFromParams_Count() {
 }
 
 func (ss *ScopesSuite) TestGetAggregationsFromParams_Count_scoped() {
-	testObject := &TestObject{}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	params := map[string][]string{
@@ -51,13 +54,68 @@ func (ss *ScopesSuite) TestGetAggregationsFromParams_Count_scoped() {
 	ss.Equal(1, aggregation)
 }
 
-func (ss *ScopesSuite) TestGetAggregationsFromParams_Sum() {
-	testObject := &TestObject{Number: 123}
-	err := ss.DB.Create(testObject)
+// There is a known incompatibility between this package and Gorm.  See https://github.com/go-gorm/gorm/issues/5170.
+func (ss *ScopesSuite) TestGetAggregationsFromParams_Count_scopedAtSymbol() {
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{Number: 123}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
+	ss.NoError(err)
+
+	params := map[string][]string{
+		"aggregation_column": {"id"},
+		"aggregation_type":   {"count"},
+	}
+
+	sc := scope.NewCollection(ss.DB)
+
+	atScopeFunc := func(q *gorm.DB) *gorm.DB {
+		return q.Where("'@' = ?", "@")
+	}
+
+	sc.Push(atScopeFunc)
+
+	_, err = scope.GetAggregationsFromParams(context.Background(), ss.DB, &[]TestObject{}, url.Values(params), sc)
+	ss.Error(err)
+}
+
+func (ss *ScopesSuite) TestGetAggregationsFromParams_Count_scopedGenericFiltering() {
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
+	ss.NoError(err)
+
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
+	ss.NoError(err)
+
+	params := map[string][]string{
+		"aggregation_column": {"id"},
+		"aggregation_type":   {"count"},
+		"filter_columns":     {"id"},
+		"filter_types":       {"in"},
+		"filter_values":      {fmt.Sprintf("%s,%s", testObject.ID.String(), testObject.ID.String())},
+	}
+
+	sc := scope.NewCollection(ss.DB)
+	sc.Push(scope.ForID(testObject.ID.String()))
+	s, err := scope.ForFiltersFromParams(context.Background(), TestObject{}, url.Values(params))
+	ss.NoError(err)
+	sc.Push(s)
+
+	aggregation, err := scope.GetAggregationsFromParams(context.Background(), ss.DB, &[]TestObject{}, url.Values(params), sc)
+	ss.NoError(err)
+	ss.Equal(1, aggregation)
+}
+
+func (ss *ScopesSuite) TestGetAggregationsFromParams_Sum() {
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 123}
+	err := ss.DB.Create(testObject).Error
+	ss.NoError(err)
+
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 123}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	params := map[string][]string{
@@ -71,12 +129,12 @@ func (ss *ScopesSuite) TestGetAggregationsFromParams_Sum() {
 }
 
 func (ss *ScopesSuite) TestGetAggregationsFromParams_Avg() {
-	testObject := &TestObject{Number: 123}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 123}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{Number: 125}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 125}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	params := map[string][]string{
@@ -90,12 +148,12 @@ func (ss *ScopesSuite) TestGetAggregationsFromParams_Avg() {
 }
 
 func (ss *ScopesSuite) TestGetAggregationsFromParams_Max() {
-	testObject := &TestObject{Number: 123}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 123}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{Number: 124}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 124}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	params := map[string][]string{
@@ -109,12 +167,12 @@ func (ss *ScopesSuite) TestGetAggregationsFromParams_Max() {
 }
 
 func (ss *ScopesSuite) TestGetAggregationsFromParams_Min() {
-	testObject := &TestObject{Number: 124}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 124}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{Number: 123}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 123}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	params := map[string][]string{
@@ -128,12 +186,13 @@ func (ss *ScopesSuite) TestGetAggregationsFromParams_Min() {
 }
 
 func (ss *ScopesSuite) TestGetAggregations_Count() {
-	testObject := &TestObject{}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4())}
+
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	aggregation, err := scope.GetAggregations(context.Background(), ss.DB, &[]TestObject{}, "id", nil, scope.StandardAggregations[scope.StandardAggregationsTypeCount])
@@ -142,12 +201,12 @@ func (ss *ScopesSuite) TestGetAggregations_Count() {
 }
 
 func (ss *ScopesSuite) TestGetAggregations_Count_scoped() {
-	testObject := &TestObject{}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	sc := scope.NewCollection(ss.DB)
@@ -159,12 +218,12 @@ func (ss *ScopesSuite) TestGetAggregations_Count_scoped() {
 }
 
 func (ss *ScopesSuite) TestGetAggregations_Sum() {
-	testObject := &TestObject{Number: 123}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 123}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{Number: 123}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 123}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	aggregation, err := scope.GetAggregations(context.Background(), ss.DB, &[]TestObject{}, "num", nil, scope.StandardAggregations[scope.StandardAggregationsTypeSum])
@@ -173,12 +232,12 @@ func (ss *ScopesSuite) TestGetAggregations_Sum() {
 }
 
 func (ss *ScopesSuite) TestGetAggregations_Avg() {
-	testObject := &TestObject{Number: 123}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 123}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{Number: 125}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 125}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	aggregation, err := scope.GetAggregations(context.Background(), ss.DB, &[]TestObject{}, "num", nil, scope.StandardAggregations[scope.StandardAggregationsTypeAvg])
@@ -187,12 +246,12 @@ func (ss *ScopesSuite) TestGetAggregations_Avg() {
 }
 
 func (ss *ScopesSuite) TestGetAggregations_Max() {
-	testObject := &TestObject{Number: 123}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 123}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{Number: 124}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 124}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	aggregation, err := scope.GetAggregations(context.Background(), ss.DB, &[]TestObject{}, "num", nil, scope.StandardAggregations[scope.StandardAggregationsTypeMax])
@@ -201,12 +260,12 @@ func (ss *ScopesSuite) TestGetAggregations_Max() {
 }
 
 func (ss *ScopesSuite) TestGetAggregations_Min() {
-	testObject := &TestObject{Number: 124}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 124}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{Number: 123}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 123}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	aggregation, err := scope.GetAggregations(context.Background(), ss.DB, &[]TestObject{}, "num", nil, scope.StandardAggregations[scope.StandardAggregationsTypeMin])
@@ -215,12 +274,12 @@ func (ss *ScopesSuite) TestGetAggregations_Min() {
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Count() {
-	testObject := &TestObject{}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	params := map[string][]string{
@@ -239,12 +298,12 @@ func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Count() {
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Count_grouped() {
-	testObject := &TestObject{}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{Number: 1}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 1}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	params := map[string][]string{
@@ -265,16 +324,16 @@ func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Count_grouped() {
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Sum() {
-	testObject := &TestObject{Number: 123}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 123}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{Number: 123}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 123}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
-	testObject3 := &TestObject{Number: 124}
-	err = ss.DB.Create(testObject3)
+	testObject3 := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 124}
+	err = ss.DB.Create(testObject3).Error
 	ss.NoError(err)
 
 	params := map[string][]string{
@@ -295,12 +354,12 @@ func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Sum() {
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Avg() {
-	testObject := &TestObject{Number: 123}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 123}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{Number: 125}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 125}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	params := map[string][]string{
@@ -322,12 +381,12 @@ func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Avg() {
 
 func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Max() {
 	nuid := util.UuidMust()
-	testObject := &TestObject{Nuid: nuid, Number: 123}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4()), Nuid: nuid, Number: 123}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{Nuid: nuid, Number: 124}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4()), Nuid: nuid, Number: 124}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	params := map[string][]string{
@@ -346,12 +405,12 @@ func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Max() {
 
 func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Min() {
 	nuid := util.UuidMust()
-	testObject := &TestObject{Nuid: nuid, Number: 123}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4()), Nuid: nuid, Number: 123}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{Nuid: nuid, Number: 124}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4()), Nuid: nuid, Number: 124}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	params := map[string][]string{
@@ -369,12 +428,12 @@ func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Min() {
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregations_Count() {
-	testObject := &TestObject{}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	aggregation, err := scope.GetGroupedAggregations(context.Background(), ss.DB, &[]TestObject{}, "id", "num", nil, scope.StandardAggregations[scope.StandardAggregationsTypeCount])
@@ -386,12 +445,12 @@ func (ss *ScopesSuite) TestGetGroupedAggregations_Count() {
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregations_Count_scoped() {
-	testObject := &TestObject{}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	sc := scope.NewCollection(ss.DB)
@@ -406,16 +465,16 @@ func (ss *ScopesSuite) TestGetGroupedAggregations_Count_scoped() {
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregations_Sum() {
-	testObject := &TestObject{Number: 123}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 123}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{Number: 123}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 123}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
-	testObject3 := &TestObject{Number: 124}
-	err = ss.DB.Create(testObject3)
+	testObject3 := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 124}
+	err = ss.DB.Create(testObject3).Error
 	ss.NoError(err)
 
 	aggregation, err := scope.GetGroupedAggregations(context.Background(), ss.DB, &[]TestObject{}, "num", "num", nil, scope.StandardAggregations[scope.StandardAggregationsTypeSum])
@@ -430,12 +489,12 @@ func (ss *ScopesSuite) TestGetGroupedAggregations_Sum() {
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregations_Avg() {
-	testObject := &TestObject{Number: 123}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 123}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{Number: 125}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4()), Number: 125}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	aggregation, err := scope.GetGroupedAggregations(context.Background(), ss.DB, &[]TestObject{}, "num", "num", nil, scope.StandardAggregations[scope.StandardAggregationsTypeAvg])
@@ -452,12 +511,12 @@ func (ss *ScopesSuite) TestGetGroupedAggregations_Avg() {
 
 func (ss *ScopesSuite) TestGetGroupedAggregations_Max() {
 	nuid := util.UuidMust()
-	testObject := &TestObject{Nuid: nuid, Number: 123}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4()), Nuid: nuid, Number: 123}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{Nuid: nuid, Number: 124}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4()), Nuid: nuid, Number: 124}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	aggregation, err := scope.GetGroupedAggregations(context.Background(), ss.DB, &[]TestObject{}, "num", "null_id", nil, scope.StandardAggregations[scope.StandardAggregationsTypeMax])
@@ -470,12 +529,12 @@ func (ss *ScopesSuite) TestGetGroupedAggregations_Max() {
 
 func (ss *ScopesSuite) TestGetGroupedAggregations_Min() {
 	nuid := util.UuidMust()
-	testObject := &TestObject{Nuid: nuid, Number: 123}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4()), Nuid: nuid, Number: 123}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{Nuid: nuid, Number: 124}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4()), Nuid: nuid, Number: 124}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	aggregation, err := scope.GetGroupedAggregations(context.Background(), ss.DB, &[]TestObject{}, "num", "null_id", nil, scope.StandardAggregations[scope.StandardAggregationsTypeMin])

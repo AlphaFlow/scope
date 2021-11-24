@@ -10,10 +10,22 @@ import (
 
 type IDSet map[uuid.UUID]bool
 
+func NewIDSet(ids []uuid.UUID) IDSet {
+	idSet := IDSet{}
+	for i := range ids {
+		id := ids[i]
+		idSet[id] = true
+	}
+
+	return idSet
+}
+
 func (idSet IDSet) Keys() []uuid.UUID {
+	i := 0
 	ids := make([]uuid.UUID, len(idSet))
-	for i := range idSet {
-		ids = append(ids, i)
+	for id := range idSet {
+		ids[i] = id
+		i++
 	}
 
 	return ids
@@ -79,19 +91,116 @@ func ForIDForModel(id string, model interface{}) pop.ScopeFunc {
 }
 
 func ForIDs(ids []uuid.UUID) pop.ScopeFunc {
-	return func(q *pop.Query) *pop.Query {
-		if len(ids) > 0 {
-			return q.Where("id in (?)", ids)
-		}
-
-		return q.Where("1 = 0")
-	}
+	return ForIDSet(NewIDSet(ids))
 }
 
 func ForIDSet(idSet IDSet) pop.ScopeFunc {
 	return func(q *pop.Query) *pop.Query {
 		if len(idSet) > 0 {
 			return q.Where("id in (?)", idSet.Keys())
+		}
+
+		return q.Where("1 = 0")
+	}
+}
+
+func ForIDsWithTableName(ids []uuid.UUID, tablename string) pop.ScopeFunc {
+	return ForIDSetWithTableName(NewIDSet(ids), tablename)
+}
+
+func ForIDSetWithTableName(idSet IDSet, tablename string) pop.ScopeFunc {
+	return func(q *pop.Query) *pop.Query {
+		if len(idSet) > 0 {
+			return q.Where(fmt.Sprintf("%s.id in (?)", tablename), idSet.Keys())
+		}
+
+		return q.Where("1 = 0")
+	}
+}
+
+func ForIDsForModel(ids []uuid.UUID, model interface{}) pop.ScopeFunc {
+	return ForIDSetForModel(NewIDSet(ids), model)
+}
+
+func ForIDSetForModel(idSet IDSet, model interface{}) pop.ScopeFunc {
+	return func(q *pop.Query) *pop.Query {
+		if len(idSet) > 0 {
+			tableNameAble := pop.Model{Value: model}
+			return q.Where(fmt.Sprintf("%s.id in (?)", tableNameAble.TableName()), idSet.Keys())
+		}
+
+		return q.Where("1 = 0")
+	}
+}
+
+func ForNotID(id string) pop.ScopeFunc {
+	return func(q *pop.Query) *pop.Query {
+		if len(id) > 0 {
+			return q.Where("id != ?", uuid.Must(uuid.FromString(id)))
+		}
+
+		return q.Where("1 = 0")
+	}
+}
+
+func ForNotIDWithTableName(id string, tablename string) pop.ScopeFunc {
+	return func(q *pop.Query) *pop.Query {
+		if len(id) > 0 {
+			return q.Where(fmt.Sprintf("%s.id != ?", tablename), uuid.Must(uuid.FromString(id)))
+		}
+
+		return q.Where("1 = 0")
+	}
+}
+
+func ForNotIDForNotModel(id string, model interface{}) pop.ScopeFunc {
+	return func(q *pop.Query) *pop.Query {
+		if len(id) > 0 {
+			tableNameAble := pop.Model{Value: model}
+			return q.Where(fmt.Sprintf("%s.id != ?", tableNameAble.TableName()), uuid.Must(uuid.FromString(id)))
+		}
+
+		return q.Where("1 = 0")
+	}
+}
+
+func ForNotIDs(ids []uuid.UUID) pop.ScopeFunc {
+	return ForNotIDSet(NewIDSet(ids))
+}
+
+func ForNotIDSet(idSet IDSet) pop.ScopeFunc {
+	return func(q *pop.Query) *pop.Query {
+		if len(idSet) > 0 {
+			return q.Where("id not in (?)", idSet.Keys())
+		}
+
+		return q.Where("1 = 0")
+	}
+}
+
+func ForNotIDsWithTableName(ids []uuid.UUID, tablename string) pop.ScopeFunc {
+	return ForNotIDSetWithTableName(NewIDSet(ids), tablename)
+}
+
+func ForNotIDSetWithTableName(idSet IDSet, tablename string) pop.ScopeFunc {
+	return func(q *pop.Query) *pop.Query {
+		if len(idSet) > 0 {
+			return q.Where(fmt.Sprintf("%s.id not in (?)", tablename), idSet.Keys())
+		}
+
+		return q.Where("1 = 0")
+	}
+}
+
+func ForNotIDsForModel(ids []uuid.UUID, model interface{}) pop.ScopeFunc {
+	return ForNotIDSetForModel(NewIDSet(ids), model)
+}
+
+func ForNotIDSetForModel(idSet IDSet, model interface{}) pop.ScopeFunc {
+	return func(q *pop.Query) *pop.Query {
+		if len(idSet) > 0 {
+			tableNameAble := pop.Model{Value: model}
+			return q.Where(fmt.Sprintf("%s.id not in (?)", tableNameAble.TableName()), idSet.Keys())
 		}
 
 		return q.Where("1 = 0")

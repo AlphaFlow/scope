@@ -3,16 +3,18 @@ package examples
 import (
 	"net/http"
 
-	"github.com/alphaflow/scope"
 	"github.com/gobuffalo/buffalo"
 	"github.com/gobuffalo/buffalo/render"
 	"github.com/gobuffalo/pop/v5"
+
+	"github.com/alphaflow/scope"
 )
 
 // Placeholders for example.
 var tx *pop.Connection
 var r render.Engine
-type ToDo struct {}  // Placeholder "Model"
+
+type ToDo struct{} // Placeholder "Model"
 type ToDos ToDo
 type toDosResource struct{}
 

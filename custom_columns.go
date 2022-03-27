@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/alphaflow/scope/util"
 	"github.com/gobuffalo/pop/v5"
+
+	"github.com/alphaflow/scope/util"
 )
 
 // CustomColumn represents a SQL statement that can be used like a column in a SQL query. CustomColumns are used in order

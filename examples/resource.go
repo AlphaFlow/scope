@@ -3,10 +3,11 @@ package examples
 import (
 	"net/http"
 
-	"github.com/alphaflow/scope"
 	"github.com/gobuffalo/buffalo"
 	"github.com/gobuffalo/buffalo/render"
 	"github.com/gobuffalo/pop/v5"
+
+	"github.com/alphaflow/scope"
 )
 
 // Placeholders for example.

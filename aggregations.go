@@ -20,6 +20,7 @@ type Aggregation struct {
 	ResultType reflect.Type
 }
 
+type Aggregations []Aggregation
 type StandardAggregationsType string
 
 const (
@@ -73,12 +74,33 @@ type groupedAggregationsQueryResult struct {
 
 // GetAggregationsFromParams aggregates a modelsPtr based on params, restricting by the scope collection scopes.
 func GetAggregationsFromParams(ctx context.Context, tx *pop.Connection, modelsPtr interface{}, params buffalo.ParamValues, scopes *Collection) (interface{}, error) {
-	aggregation, ok := StandardAggregations[StandardAggregationsType(strings.ToUpper(params.Get("aggregation_type")))]
-	if !ok {
-		return nil, errors.New("unknown aggregation type")
+	filterSeparator := getFilterSeparator(params)
+
+	columns := make([]string, 0)
+	if !util.IsBlank(params.Get("aggregation_column")) {
+		columns = strings.Split(params.Get("aggregation_column"), filterSeparator)
+	}
+	types := make([]string, 0)
+	if !util.IsBlank(params.Get("aggregation_type")) {
+		types = strings.Split(params.Get("aggregation_type"), filterSeparator)
 	}
 
-	aggregationResult, err := GetAggregations(ctx, tx, modelsPtr, params.Get("aggregation_column"), scopes, aggregation)
+	if len(columns) != len(types) {
+		// We must have the same number of all aggregation params.
+		return nil, errors.New("missing or mismatched aggregation parameters")
+	}
+
+	aggregations := Aggregations{}
+	for _, aggregationType := range types {
+		aggregation, ok := StandardAggregations[StandardAggregationsType(strings.ToUpper(aggregationType))]
+		if !ok {
+			return nil, errors.New("unknown aggregation type")
+		}
+
+		aggregations = append(aggregations, aggregation)
+	}
+
+	aggregationResult, err := GetAggregations(ctx, tx, modelsPtr, columns, scopes, aggregations)
 	if err != nil {
 		return nil, err
 	}
@@ -88,12 +110,35 @@ func GetAggregationsFromParams(ctx context.Context, tx *pop.Connection, modelsPt
 
 // GetGroupedAggregationsFromParams groups and aggregates a modelsPtr based on params, restricting by the scope collection scopes.
 func GetGroupedAggregationsFromParams(ctx context.Context, tx *pop.Connection, modelsPtr interface{}, params buffalo.ParamValues, scopes *Collection) ([]interface{}, error) {
-	aggregation, ok := StandardAggregations[StandardAggregationsType(strings.ToUpper(params.Get("aggregation_type")))]
-	if !ok {
-		return nil, errors.New("unknown aggregation type")
+	filterSeparator := getFilterSeparator(params)
+
+	columns := make([]string, 0)
+	if !util.IsBlank(params.Get("aggregation_column")) {
+		columns = strings.Split(params.Get("aggregation_column"), filterSeparator)
+	}
+	types := make([]string, 0)
+	if !util.IsBlank(params.Get("aggregation_type")) {
+		types = strings.Split(params.Get("aggregation_type"), filterSeparator)
 	}
 
-	aggregationResult, err := GetGroupedAggregations(ctx, tx, modelsPtr, params.Get("aggregation_column"), params.Get("aggregation_grouper_column"), scopes, aggregation)
+	if len(columns) != len(types) {
+		// We must have the same number of all aggregation params, and only 1 grouper.
+		return nil, errors.New("missing or mismatched aggregation parameters")
+	}
+
+	aggregations := Aggregations{}
+	for _, aggregationType := range types {
+		aggregation, ok := StandardAggregations[StandardAggregationsType(strings.ToUpper(aggregationType))]
+		if !ok {
+			return nil, errors.New("unknown aggregation type")
+		}
+
+		aggregations = append(aggregations, aggregation)
+	}
+
+	aggregationGrouperColumn := params.Get("aggregation_grouper_column")
+
+	aggregationResult, err := GetGroupedAggregations(ctx, tx, modelsPtr, columns, aggregationGrouperColumn, scopes, aggregations)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +151,7 @@ func GetGroupedAggregationsFromParams(ctx context.Context, tx *pop.Connection, m
 //
 // `columnName` is either a CustomColumn returned by the CustomFilterable interface, or a field specified by the json
 // tag.  This is the same as the acceptable values for `filter_columns` in ForFiltersFromParams.
-func GetAggregations(ctx context.Context, tx *pop.Connection, modelsPtr interface{}, columnName string, scopes *Collection, aggregation Aggregation) (interface{}, error) {
+func GetAggregations(ctx context.Context, tx *pop.Connection, modelsPtr interface{}, columnNames []string, scopes *Collection, aggregations Aggregations) (interface{}, error) {
 	v := reflect.ValueOf(modelsPtr)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Slice {
 		return nil, errors.New("pointer to slice expected")
@@ -120,20 +165,25 @@ func GetAggregations(ctx context.Context, tx *pop.Connection, modelsPtr interfac
 		return nil, err
 	}
 
-	var column *CustomColumn
-	for i, filterColumn := range filterColumns {
-		if columnName == filterColumn.Name {
-			column = &filterColumns[i]
-			break
+	customColumns := CustomColumns{}
+	for _, columnName := range columnNames {
+		var column *CustomColumn
+		for i, filterColumn := range filterColumns {
+			if columnName == filterColumn.Name {
+				column = &filterColumns[i]
+				break
+			}
 		}
-	}
 
-	if column == nil {
-		return nil, errors.Errorf("invalid filter field: %v", columnName)
+		if column == nil {
+			return nil, errors.Errorf("invalid filter field: %v", columnName)
+		}
+
+		customColumns = append(customColumns, *column)
 	}
 
 	tableName := (&pop.Model{Value: modelPtr}).TableName()
-	return getCustomAggregations(tx, tableName, *column, scopes, aggregation)
+	return getCustomAggregations(tx, tableName, customColumns, scopes, aggregations)
 }
 
 // GetGroupedAggregations returns the aggregated value for column `columnName` of modelsPtr, grouped by `grouperName` of
@@ -141,7 +191,7 @@ func GetAggregations(ctx context.Context, tx *pop.Connection, modelsPtr interfac
 //
 // `columnName` is either a CustomColumn returned by the CustomFilterable interface, or a field specified by the json
 // tag.  This is the same as the acceptable values for `filter_columns` in ForFiltersFromParams.
-func GetGroupedAggregations(ctx context.Context, tx *pop.Connection, modelsPtr interface{}, columnName, grouperName string, scopes *Collection, aggregation Aggregation) ([]interface{}, error) {
+func GetGroupedAggregations(ctx context.Context, tx *pop.Connection, modelsPtr interface{}, columnNames []string, grouperName string, scopes *Collection, aggregations Aggregations) ([]interface{}, error) {
 	v := reflect.ValueOf(modelsPtr)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Slice {
 		return nil, errors.New("pointer to slice expected")
@@ -155,29 +205,36 @@ func GetGroupedAggregations(ctx context.Context, tx *pop.Connection, modelsPtr i
 		return nil, err
 	}
 
-	var column *CustomColumn
+	customColumns := CustomColumns{}
 	var grouper *CustomColumn
-	for i, filterColumn := range filterColumns {
-		if columnName == filterColumn.Name {
-			column = &filterColumns[i]
-		}
-		if grouperName == filterColumn.Name {
-			grouper = &filterColumns[i]
-		}
-		if column != nil && grouper != nil {
-			break
-		}
-	}
+	for _, columnName := range columnNames {
+		var column *CustomColumn
+		for i, filterColumn := range filterColumns {
+			if columnName == filterColumn.Name {
+				column = &filterColumns[i]
+			}
 
-	if column == nil {
-		return nil, errors.Errorf("invalid filter field: %v", columnName)
+			if grouper == nil && grouperName == filterColumn.Name {
+				grouper = &filterColumns[i]
+			}
+
+			if grouper != nil && column != nil {
+				break
+			}
+		}
+
+		if column == nil {
+			return nil, errors.Errorf("invalid filter field: %v", columnName)
+		}
+
+		customColumns = append(customColumns, *column)
 	}
 	if grouper == nil {
 		return nil, errors.Errorf("invalid filter field: %v", grouperName)
 	}
 
 	tableName := (&pop.Model{Value: modelPtr}).TableName()
-	return getCustomGroupedAggregations(tx, tableName, *column, *grouper, scopes, aggregation)
+	return getCustomGroupedAggregations(tx, tableName, customColumns, *grouper, scopes, aggregations)
 }
 
 // getCustomAggregations returns the aggregated value for column for the provided `customColumn` from the table `tableName`,
@@ -185,29 +242,52 @@ func GetGroupedAggregations(ctx context.Context, tx *pop.Connection, modelsPtr i
 //
 // In order to do this, we must build a custom struct with the correct ResultType for customColumn.  We then build a
 // scoped GROUP BY query to retrieve all values for customColumn into that struct.
-func getCustomAggregations(tx *pop.Connection, tableName string, customColumn CustomColumn, scopes *Collection, aggregation Aggregation) (interface{}, error) {
+func getCustomAggregations(tx *pop.Connection, tableName string, customColumns CustomColumns, scopes *Collection, aggregations Aggregations) (interface{}, error) {
 	type __stub__ struct{}
 	clauses := ""
 
-	// We need to build a struct of type "ResultType", so that we can correctly marshall the output types from the DB.
-	templateStructField, ok := reflect.ValueOf(aggregationsQueryResult{}).Type().FieldByName("Result")
-	if !ok {
-		return nil, errors.New("unable to build aggregation query result")
-	}
+	structFields := make([]reflect.StructField, len(aggregations))
+	queryStubs := make([]string, len(aggregations))
+	aggregationScopes := NewCollection(tx)
+	jsonKeySet := make(map[string]bool)
+	for i, aggregation := range aggregations {
+		jsonKey := fmt.Sprintf("%v_%v", strings.ToLower(aggregation.Name), customColumns[i].Name)
+		if _, ok := jsonKeySet[jsonKey]; ok {
+			return nil, errors.New("duplicate aggregation parameter")
+		}
 
-	templateStructField.Type = aggregation.ResultType
+		jsonKeySet[jsonKey] = true
+		structFieldName := fmt.Sprintf("Result%v", i)
+		structFieldTag := fmt.Sprintf(`db:"result%v" json:"%v"`, i, jsonKey)
 
-	// If the aggregation doesn't have a defined output type, assume the output is the same type as the field.
-	if templateStructField.Type == nil {
-		templateStructField.Type = customColumn.ResultType
+		// We need to build a struct of type "ResultType", so that we can correctly marshall the output types from the DB.
+		templateStructField, ok := reflect.ValueOf(aggregationsQueryResult{}).Type().FieldByName("Result")
+		if !ok {
+			return nil, errors.New("unable to build aggregation query result")
+		}
+
+		templateStructField.Name = structFieldName
+		templateStructField.Type = aggregation.ResultType
+		templateStructField.Tag = reflect.StructTag(structFieldTag)
+
+		// If the aggregation doesn't have a defined output type, assume the output is the same type as the field.
+		if templateStructField.Type == nil {
+			templateStructField.Type = customColumns[i].ResultType
+		}
+
+		trailingComma := ","
+		if i == len(aggregations)-1 {
+			trailingComma = ""
+		}
+		structFields[i] = templateStructField
+		queryStubs[i] = fmt.Sprintf("%v(%v) AS result%v%v", aggregation.Statement, customColumns[i].Statement, i, trailingComma)
+
+		// We never return null as a filter option.
+		aggregationScopes.Push(ForNotNull(customColumns[i].Statement))
 	}
 
 	//templateStructFieldDBTag := templateStructField.Tag.Get("db")
-	typedStructWithDBTag := reflect.New(reflect.StructOf([]reflect.StructField{templateStructField}))
-	aggregationScopes := NewCollection(tx)
-
-	// We never return null as a filter option.
-	aggregationScopes.Push(ForNotNull(customColumn.Statement))
+	typedStructWithDBTag := reflect.New(reflect.StructOf(structFields))
 
 	if scopes != nil && len(scopes.scopes) > 0 {
 		aggregationScopes.Push(scopes.scopes...)
@@ -222,13 +302,13 @@ func getCustomAggregations(tx *pop.Connection, tableName string, customColumn Cu
 	orderRegex := regexp.MustCompile(`ORDER\s+BY\s+\w+(\s+ASC|\s+DESC)?([\s,]*\w+(\s+ASC|\s+DESC)?)*`)
 	clauses = orderRegex.ReplaceAllString(clauses, "")
 
-	generatedStatement := fmt.Sprintf("SELECT %v(%v) AS result FROM %v %v", aggregation.Statement, customColumn.Statement, tableName, clauses)
+	generatedStatement := fmt.Sprintf("SELECT %v FROM %v %v", strings.Join(queryStubs, " "), tableName, clauses)
 	err := tx.RawQuery(generatedStatement, scopeQueryArgs...).First(typedStructWithDBTag.Interface())
 	if err != nil {
 		return nil, err
 	}
 
-	return reflect.Indirect(typedStructWithDBTag).FieldByName("Result").Interface(), nil
+	return typedStructWithDBTag.Interface(), nil
 }
 
 // getCustomGroupedAggregations returns the aggregated value for column for the provided `customColumn` from the table `tableName`,
@@ -236,33 +316,61 @@ func getCustomAggregations(tx *pop.Connection, tableName string, customColumn Cu
 //
 // In order to do this, we must build a custom struct with the correct ResultType for customColumn.  We then build a
 // scoped GROUP BY query to retrieve all values for customColumn into that struct.
-func getCustomGroupedAggregations(tx *pop.Connection, tableName string, customColumn, groupColumn CustomColumn, scopes *Collection, aggregation Aggregation) ([]interface{}, error) {
+func getCustomGroupedAggregations(tx *pop.Connection, tableName string, customColumns CustomColumns, groupColumn CustomColumn, scopes *Collection, aggregations Aggregations) ([]interface{}, error) {
 	type __stub__ struct{}
 	clauses := ""
 
-	// We need to build a struct of type "ResultType", so that we can correctly marshall the output types from the DB.
-	templateResultStructField, ok := reflect.ValueOf(groupedAggregationsQueryResult{}).Type().FieldByName("Result")
-	if !ok {
-		return nil, errors.New("unable to build grouped aggregation query result")
-	}
+	structFields := make([]reflect.StructField, len(aggregations)+1)
+
 	templateGrouperStructField, ok := reflect.ValueOf(groupedAggregationsQueryResult{}).Type().FieldByName("Grouper")
 	if !ok {
 		return nil, errors.New("unable to build grouped aggregation query result")
 	}
 
-	templateResultStructField.Type = aggregation.ResultType
 	templateGrouperStructField.Type = groupColumn.ResultType
+	structFields[0] = templateGrouperStructField
 
-	// If the aggregation doesn't have a defined output type, assume the output is the same type as the field.
-	if templateResultStructField.Type == nil {
-		templateResultStructField.Type = customColumn.ResultType
+	queryStubs := make([]string, len(aggregations))
+	aggregationScopes := NewCollection(tx)
+	jsonKeySet := make(map[string]bool)
+	for i, aggregation := range aggregations {
+		jsonKey := fmt.Sprintf("%v_%v", strings.ToLower(aggregation.Name), customColumns[i].Name)
+		if _, ok := jsonKeySet[jsonKey]; ok {
+			return nil, errors.New("duplicate aggregation parameter")
+		}
+
+		jsonKeySet[jsonKey] = true
+		structFieldName := fmt.Sprintf("Result%v", i)
+		structFieldTag := fmt.Sprintf(`db:"result%v" json:"%v"`, i, jsonKey)
+
+		// We need to build a struct of type "ResultType", so that we can correctly marshall the output types from the DB.
+		templateStructField, ok := reflect.ValueOf(aggregationsQueryResult{}).Type().FieldByName("Result")
+		if !ok {
+			return nil, errors.New("unable to build aggregation query result")
+		}
+
+		templateStructField.Name = structFieldName
+		templateStructField.Type = aggregation.ResultType
+		templateStructField.Tag = reflect.StructTag(structFieldTag)
+
+		// If the aggregation doesn't have a defined output type, assume the output is the same type as the field.
+		if templateStructField.Type == nil {
+			templateStructField.Type = customColumns[i].ResultType
+		}
+
+		trailingComma := ","
+		if i == len(aggregations)-1 {
+			trailingComma = ""
+		}
+
+		structFields[i+1] = templateStructField
+		queryStubs[i] = fmt.Sprintf("%v(%v) AS result%v%v", aggregation.Statement, customColumns[i].Statement, i, trailingComma)
+
+		// We never return null as a filter option.
+		aggregationScopes.Push(ForNotNull(customColumns[i].Statement))
 	}
 
-	typedStructArrayPtrWithDBTag := reflect.New(reflect.SliceOf(reflect.StructOf([]reflect.StructField{templateGrouperStructField, templateResultStructField})))
-	aggregationScopes := NewCollection(tx)
-
-	// We never return null as a filter option.
-	aggregationScopes.Push(ForNotNull(customColumn.Statement))
+	typedStructArrayPtrWithDBTag := reflect.New(reflect.SliceOf(reflect.StructOf(structFields)))
 
 	if scopes != nil && len(scopes.scopes) > 0 {
 		aggregationScopes.Push(scopes.scopes...)
@@ -277,7 +385,7 @@ func getCustomGroupedAggregations(tx *pop.Connection, tableName string, customCo
 	orderRegex := regexp.MustCompile(`ORDER\s+BY\s+\w+(\s+ASC|\s+DESC)?([\s,]*\w+(\s+ASC|\s+DESC)?)*`)
 	clauses = orderRegex.ReplaceAllString(clauses, "")
 
-	generatedStatement := fmt.Sprintf("SELECT %v AS grouper, %v(%v) AS result FROM %v %v GROUP BY %v", groupColumn.Statement, aggregation.Statement, customColumn.Statement, tableName, clauses, groupColumn.Statement)
+	generatedStatement := fmt.Sprintf("SELECT %v AS grouper, %v FROM %v %v GROUP BY %v", groupColumn.Statement, strings.Join(queryStubs, " "), tableName, clauses, groupColumn.Statement)
 	err := tx.RawQuery(generatedStatement, scopeQueryArgs...).All(typedStructArrayPtrWithDBTag.Interface())
 	if err != nil {
 		return nil, err

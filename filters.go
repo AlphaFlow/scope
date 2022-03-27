@@ -57,17 +57,8 @@ func ForFiltersFromParams(ctx context.Context, model interface{}, params buffalo
 	}
 	modelPtr := reflect.New(reflect.TypeOf(model)).Interface()
 
-	// filter_separator can be used to separate the filter columns, etc, if | is not suitable.
-	filterSeparator := "|"
-	if !util.IsBlank(params.Get("filter_separator")) {
-		filterSeparator = params.Get("filter_separator")
-	}
-
-	// filter_args_separator can be used to separate the filter args for operators with many args, if , is not suitable.
-	filterArgsSeparator := ","
-	if !util.IsBlank(params.Get("filter_args_separator")) {
-		filterArgsSeparator = params.Get("filter_args_separator")
-	}
+	filterSeparator := getFilterSeparator(params)
+	filterArgsSeparator := getFilterArgsSeparator(params)
 
 	columns := make([]string, 0)
 	if !util.IsBlank(params.Get("filter_columns")) {
@@ -234,16 +225,17 @@ func ForSortFromParams(ctx context.Context, model interface{}, params buffalo.Pa
 	if v.Kind() != reflect.Struct {
 		return nil, errors.New("struct expected")
 	}
-
 	modelPtr := reflect.New(reflect.TypeOf(model)).Interface()
+
+	filterSeparator := getFilterSeparator(params)
 
 	columns := make([]string, 0)
 	if !util.IsBlank(params.Get("sort_columns")) {
-		columns = strings.Split(params.Get("sort_columns"), "|")
+		columns = strings.Split(params.Get("sort_columns"), filterSeparator)
 	}
 	directions := make([]string, 0)
 	if !util.IsBlank(params.Get("sort_directions")) {
-		directions = strings.Split(params.Get("sort_directions"), "|")
+		directions = strings.Split(params.Get("sort_directions"), filterSeparator)
 	}
 
 	// If nothing is specified, this is a no-op.
@@ -293,4 +285,26 @@ func ForPaginateFromParams(params buffalo.ParamValues) pop.ScopeFunc {
 	return func(q *pop.Query) *pop.Query {
 		return q.PaginateFromParams(params)
 	}
+}
+
+// getFilterSeparator gets the filterSeparator token. The parameter filter_separator can be used to separate the filter
+// columns, etc, if | is not suitable.
+func getFilterSeparator(params buffalo.ParamValues) string {
+	filterSeparator := "|"
+	if !util.IsBlank(params.Get("filter_separator")) {
+		filterSeparator = params.Get("filter_separator")
+	}
+
+	return filterSeparator
+}
+
+// getFilterArgsSeparator gets the filterSeparator token. The parameter filter_args_separator can be used to separate
+// the filter args for operators with many args, if , is not suitable.
+func getFilterArgsSeparator(params buffalo.ParamValues) string {
+	filterArgsSeparator := ","
+	if !util.IsBlank(params.Get("filter_args_separator")) {
+		filterArgsSeparator = params.Get("filter_args_separator")
+	}
+
+	return filterArgsSeparator
 }

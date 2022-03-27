@@ -1,7 +1,4 @@
-package suite
-
-// Copied from https://github.com/gobuffalo/suite/blob/master/model.go
-// Note: This replaces the SetupTest call to TruncateAll with a more performant option
+package scope_test
 
 import (
 	"encoding/json"
@@ -26,6 +23,31 @@ type Model struct {
 	DB       *gorm.DB
 	Fixtures buffaloSuite.Box
 }
+
+// SetupTest clears database
+func (m *Model) SetupTest() {
+	m.Assertions = require.New(m.T())
+	if m.DB != nil {
+		err := m.DB.Exec(`
+DO
+$func$
+BEGIN
+   EXECUTE      
+   (SELECT 'TRUNCATE TABLE ' || string_agg(oid::regclass::text, ', ') || ' CASCADE'
+    FROM   pg_class
+    WHERE relkind = 'r'
+  	AND relnamespace NOT IN ('pg_catalog'::REGNAMESPACE, 'information_schema'::REGNAMESPACE)
+  	AND PG_GET_USERBYID(relowner)::TEXT = CURRENT_USER::TEXT
+   );
+END
+$func$;
+			`).Error
+		m.NoError(err)
+	}
+}
+
+// TearDownTest will be called after tests finish
+func (m *Model) TearDownTest() {}
 
 // DBDelta checks database table count change for a passed table name.
 func (m *Model) DBDelta(delta int, name string, fn func()) {

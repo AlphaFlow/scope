@@ -5,10 +5,7 @@ go 1.15
 require (
 	github.com/gobuffalo/buffalo v0.16.15
 	github.com/gobuffalo/envy v1.9.0
-	github.com/gobuffalo/httptest v1.5.0
-	github.com/gobuffalo/mw-csrf v1.0.0
 	github.com/gobuffalo/nulls v0.4.1
-	github.com/gobuffalo/plush/v4 v4.1.0
 	github.com/gobuffalo/pop/v5 v5.3.4
 	github.com/gobuffalo/suite/v3 v3.0.2
 	github.com/gobuffalo/x v0.0.0-20190224155809-6bb134105960

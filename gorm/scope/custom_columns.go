@@ -10,7 +10,7 @@ import (
 )
 
 // CustomColumn represents a SQL statement that can be used like a column in a SQL query. CustomColumns are used in order
-// to create filter and sort options the are more complex than simply sorting on a single field.  For example:
+// to create filter and sort options that are more complex than simply sorting on a single field.  For example:
 //
 // Given an object with a db column 'test_int', in order to sort on the TEXT converted value of 'test_int' you would
 // implement 'CustomSortable' and provide the CustomColumn:

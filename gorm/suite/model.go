@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/gobuffalo/envy"
-	"github.com/gobuffalo/plush/v4"
 	"github.com/gobuffalo/pop/v5"
 	buffaloSuite "github.com/gobuffalo/suite/v3"
 	"github.com/gobuffalo/suite/v3/fix"
@@ -27,31 +26,6 @@ type Model struct {
 	DB       *gorm.DB
 	Fixtures buffaloSuite.Box
 }
-
-// SetupTest clears database
-func (m *Model) SetupTest() {
-	m.Assertions = require.New(m.T())
-	if m.DB != nil {
-		err := m.DB.Exec(`
-DO
-$func$
-BEGIN
-   EXECUTE      
-   (SELECT 'TRUNCATE TABLE ' || string_agg(oid::regclass::text, ', ') || ' CASCADE'
-    FROM   pg_class
-    WHERE relkind = 'r'
-  	AND relnamespace NOT IN ('pg_catalog'::REGNAMESPACE, 'information_schema'::REGNAMESPACE)
-  	AND PG_GET_USERBYID(relowner)::TEXT = CURRENT_USER::TEXT
-   );
-END
-$func$;
-			`).Error
-		m.NoError(err)
-	}
-}
-
-// TearDownTest will be called after tests finish
-func (m *Model) TearDownTest() {}
 
 // DBDelta checks database table count change for a passed table name.
 func (m *Model) DBDelta(delta int, name string, fn func()) {
@@ -134,18 +108,4 @@ func NewModel() *Model {
 		log.Fatal(err)
 	}
 	return m
-}
-
-// NewModelWithFixturesAndContext creates a new model suite with fixtures and a passed context.
-func NewModelWithFixturesAndContext(box buffaloSuite.Box, ctx *plush.Context) (*Model, error) {
-	m := NewModel()
-	m.Fixtures = box
-	return m, fix.InitWithContext(box, ctx)
-}
-
-// NewModelWithFixtures creates a new model with passed fixtures box
-func NewModelWithFixtures(box buffaloSuite.Box) (*Model, error) {
-	m := NewModel()
-	m.Fixtures = box
-	return m, fix.Init(box)
 }

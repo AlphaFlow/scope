@@ -7,10 +7,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/alphaflow/scope/util"
 	"github.com/gobuffalo/buffalo"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
+
+	"github.com/alphaflow/scope/util"
 )
 
 const FailQuery = "1=0"

@@ -7,10 +7,11 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/alphaflow/scope/util"
 	"github.com/gobuffalo/buffalo"
 	"github.com/gobuffalo/pop/v5"
 	"github.com/pkg/errors"
+
+	"github.com/alphaflow/scope/util"
 )
 
 type Aggregation struct {

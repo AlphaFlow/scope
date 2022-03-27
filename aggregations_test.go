@@ -4,10 +4,10 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/alphaflow/scope/util"
 	"github.com/gobuffalo/nulls"
 
 	"github.com/alphaflow/scope"
+	"github.com/alphaflow/scope/util"
 )
 
 func (ss *ScopesSuite) TestGetAggregationsFromParams_Count() {

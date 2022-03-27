@@ -6,9 +6,10 @@ import (
 	"reflect"
 	"regexp"
 
-	"github.com/alphaflow/scope/util"
 	"github.com/gobuffalo/pop/v5"
 	"github.com/pkg/errors"
+
+	"github.com/alphaflow/scope/util"
 )
 
 // filterOptionsQueryResult is a struct with an interface column.  The type of interface is swapped out using

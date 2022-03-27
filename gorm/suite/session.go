@@ -1,8 +1,6 @@
 package suite
 
 // Copied from https://github.com/gobuffalo/suite/blob/master/session.go
-// See https://github.com/AlphaFlow/api-core/pull/119
-// See https://github.com/AlphaFlow/institutional-api/pull/1444
 
 import (
 	"net/http"

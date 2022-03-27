@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/alphaflow/scope/util"
 	"github.com/gobuffalo/nulls"
 	"github.com/gofrs/uuid"
 	"gorm.io/gorm"
 
 	"github.com/alphaflow/scope/gorm/scope"
+	"github.com/alphaflow/scope/util"
 )
 
 func (ss *ScopesSuite) TestGetAggregationsFromParams_Count() {

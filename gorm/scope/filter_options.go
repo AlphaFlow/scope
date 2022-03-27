@@ -7,9 +7,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/alphaflow/scope/util"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
+
+	"github.com/alphaflow/scope/util"
 )
 
 // filterOptionsQueryResult is a struct with an interface column.  The type of interface is swapped out using

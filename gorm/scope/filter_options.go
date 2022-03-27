@@ -7,10 +7,10 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/alphaflow/scope/util"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 
-	"github.com/alphaflow/api-core/destructify"
 )
 
 // filterOptionsQueryResult is a struct with an interface column.  The type of interface is swapped out using
@@ -104,5 +104,5 @@ func getCustomFilterOptions(tx *gorm.DB, tableName string, customColumn CustomCo
 		output.Index(i).Set(value)
 	}
 
-	return destructify.InterfaceSlice(output.Interface()), nil
+	return util.InterfaceSlice(output.Interface()), nil
 }

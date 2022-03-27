@@ -6,10 +6,10 @@ import (
 	"reflect"
 	"regexp"
 
+	"github.com/alphaflow/scope/util"
 	"github.com/gobuffalo/pop/v5"
 	"github.com/pkg/errors"
 
-	"github.com/alphaflow/api-core/destructify"
 )
 
 // filterOptionsQueryResult is a struct with an interface column.  The type of interface is swapped out using
@@ -100,5 +100,5 @@ func getCustomFilterOptions(tx *pop.Connection, tableName string, customColumn C
 		output.Index(i).Set(value)
 	}
 
-	return destructify.InterfaceSlice(output.Interface()), nil
+	return util.InterfaceSlice(output.Interface()), nil
 }

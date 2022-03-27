@@ -7,7 +7,7 @@ import (
 	"github.com/gobuffalo/nulls"
 	"github.com/gofrs/uuid"
 
-	"github.com/alphaflow/api-core/gorm/scope"
+	"github.com/alphaflow/scope/gorm/scope"
 )
 
 type TestObjectWithOverride struct {

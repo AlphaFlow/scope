@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gorm.io/gorm"
 
-	"github.com/alphaflow/api-core/gorm/scope"
+	"github.com/alphaflow/scope/gorm/scope"
 )
 
 type TestModel struct {

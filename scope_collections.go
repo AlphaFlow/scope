@@ -7,8 +7,6 @@ import (
 
 	"github.com/gobuffalo/pop/v5"
 	"github.com/pkg/errors"
-
-	"github.com/alphaflow/api-core/reflectify"
 )
 
 type Collection struct {
@@ -45,7 +43,7 @@ func (sc *Collection) Flatten() pop.ScopeFunc {
 
 func (sc *Collection) Dedupe() *Collection {
 	if sc.tx == nil {
-		panic(errors.Errorf("invalid tx value for %s", reflectify.FuncName()))
+		panic(errors.Errorf("invalid tx value for Dedupe"))
 	}
 
 	sc.scopes = dedupeScopes(sc.tx, sc.Get()...)

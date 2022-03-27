@@ -1,9 +1,9 @@
 package scope_test
 
 import (
+	"github.com/alphaflow/scope"
 	"github.com/gofrs/uuid"
 
-	"github.com/alphaflow/api-core/buffalo/scope"
 )
 
 func (ss *ScopesSuite) TestNewIdSet() {

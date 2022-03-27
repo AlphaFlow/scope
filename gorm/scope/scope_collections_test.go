@@ -3,7 +3,7 @@ package scope_test
 import (
 	"github.com/gofrs/uuid"
 
-	"github.com/alphaflow/api-core/gorm/scope"
+	"github.com/alphaflow/scope/gorm/scope"
 )
 
 func (ss *ScopesSuite) TestScopeCollection_dedupe() {

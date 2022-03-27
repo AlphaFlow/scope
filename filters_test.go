@@ -12,7 +12,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/alphaflow/api-core/buffalo/scope"
+	"github.com/alphaflow/scope"
 )
 
 type TestModel struct {

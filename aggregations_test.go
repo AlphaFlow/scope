@@ -4,10 +4,10 @@ import (
 	"context"
 	"net/url"
 
+	"github.com/alphaflow/scope/util"
 	"github.com/gobuffalo/nulls"
 
-	"github.com/alphaflow/api-core/buffalo/scope"
-	"github.com/alphaflow/api-core/nullsutil"
+	"github.com/alphaflow/scope"
 )
 
 func (ss *ScopesSuite) TestGetAggregationsFromParams_Count() {
@@ -321,7 +321,7 @@ func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Avg() {
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Max() {
-	nuid := nullsutil.UuidMust()
+	nuid := util.UuidMust()
 	testObject := &TestObject{Nuid: nuid, Number: 123}
 	err := ss.DB.Create(testObject)
 	ss.NoError(err)
@@ -345,7 +345,7 @@ func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Max() {
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Min() {
-	nuid := nullsutil.UuidMust()
+	nuid := util.UuidMust()
 	testObject := &TestObject{Nuid: nuid, Number: 123}
 	err := ss.DB.Create(testObject)
 	ss.NoError(err)
@@ -451,7 +451,7 @@ func (ss *ScopesSuite) TestGetGroupedAggregations_Avg() {
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregations_Max() {
-	nuid := nullsutil.UuidMust()
+	nuid := util.UuidMust()
 	testObject := &TestObject{Nuid: nuid, Number: 123}
 	err := ss.DB.Create(testObject)
 	ss.NoError(err)
@@ -469,7 +469,7 @@ func (ss *ScopesSuite) TestGetGroupedAggregations_Max() {
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregations_Min() {
-	nuid := nullsutil.UuidMust()
+	nuid := util.UuidMust()
 	testObject := &TestObject{Nuid: nuid, Number: 123}
 	err := ss.DB.Create(testObject)
 	ss.NoError(err)

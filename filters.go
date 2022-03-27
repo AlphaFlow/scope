@@ -7,11 +7,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/alphaflow/scope/util"
 	"github.com/gobuffalo/buffalo"
 	"github.com/gobuffalo/pop/v5"
 	"github.com/pkg/errors"
-
-	"github.com/alphaflow/api-core/stringsutil"
 )
 
 const FailQuery = "1=0"
@@ -59,34 +58,34 @@ func ForFiltersFromParams(ctx context.Context, model interface{}, params buffalo
 
 	// filter_separator can be used to separate the filter columns, etc, if | is not suitable.
 	filterSeparator := "|"
-	if !stringsutil.IsBlank(params.Get("filter_separator")) {
+	if !util.IsBlank(params.Get("filter_separator")) {
 		filterSeparator = params.Get("filter_separator")
 	}
 
 	// filter_args_separator can be used to separate the filter args for operators with many args, if , is not suitable.
 	filterArgsSeparator := ","
-	if !stringsutil.IsBlank(params.Get("filter_args_separator")) {
+	if !util.IsBlank(params.Get("filter_args_separator")) {
 		filterArgsSeparator = params.Get("filter_args_separator")
 	}
 
 	columns := make([]string, 0)
-	if !stringsutil.IsBlank(params.Get("filter_columns")) {
+	if !util.IsBlank(params.Get("filter_columns")) {
 		columns = strings.Split(params.Get("filter_columns"), filterSeparator)
 	}
 	types := make([]string, 0)
-	if !stringsutil.IsBlank(params.Get("filter_types")) {
+	if !util.IsBlank(params.Get("filter_types")) {
 		types = strings.Split(params.Get("filter_types"), filterSeparator)
 	}
 	leftParens := make([]string, 0)
-	if !stringsutil.IsBlank(params.Get("filter_left_parens")) {
+	if !util.IsBlank(params.Get("filter_left_parens")) {
 		leftParens = strings.Split(params.Get("filter_left_parens"), filterSeparator)
 	}
 	rightParens := make([]string, 0)
-	if !stringsutil.IsBlank(params.Get("filter_right_parens")) {
+	if !util.IsBlank(params.Get("filter_right_parens")) {
 		rightParens = strings.Split(params.Get("filter_right_parens"), filterSeparator)
 	}
 	logic := make([]string, 0)
-	if !stringsutil.IsBlank(params.Get("filter_logic")) {
+	if !util.IsBlank(params.Get("filter_logic")) {
 		logic = strings.Split(params.Get("filter_logic"), filterSeparator)
 	}
 
@@ -138,7 +137,7 @@ func ForFiltersFromParams(ctx context.Context, model interface{}, params buffalo
 			args = append(args, values[i])
 			argsPerClause[i] = 1
 		} else if filterOperatorHasArgs(types[i]) {
-			if stringsutil.IsBlank(values[i]) {
+			if util.IsBlank(values[i]) {
 				argsPerClause[i] = 0
 			} else {
 
@@ -238,11 +237,11 @@ func ForSortFromParams(ctx context.Context, model interface{}, params buffalo.Pa
 	modelPtr := reflect.New(reflect.TypeOf(model)).Interface()
 
 	columns := make([]string, 0)
-	if !stringsutil.IsBlank(params.Get("sort_columns")) {
+	if !util.IsBlank(params.Get("sort_columns")) {
 		columns = strings.Split(params.Get("sort_columns"), "|")
 	}
 	directions := make([]string, 0)
-	if !stringsutil.IsBlank(params.Get("sort_directions")) {
+	if !util.IsBlank(params.Get("sort_directions")) {
 		directions = strings.Split(params.Get("sort_directions"), "|")
 	}
 

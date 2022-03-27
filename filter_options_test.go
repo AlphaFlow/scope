@@ -7,7 +7,7 @@ import (
 	"github.com/gobuffalo/nulls"
 	"github.com/gofrs/uuid"
 
-	"github.com/alphaflow/api-core/buffalo/scope"
+	"github.com/alphaflow/scope"
 )
 
 type TestObject struct {

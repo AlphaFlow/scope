@@ -3,6 +3,9 @@ package util
 import (
 	"reflect"
 	"strings"
+
+	"github.com/gobuffalo/nulls"
+	"github.com/gofrs/uuid"
 )
 
 func IsBlank(s string) bool {
@@ -61,7 +64,7 @@ func FieldWithJsonTagValue(model interface{}, value string) (name string, ok boo
 	return "", false
 }
 
-// StructValueAndType returns a the reflected value and type of a model.
+// StructValueAndType returns the reflected value and type of a model.
 func StructValueAndType(model interface{}) (reflect.Value, reflect.Type) {
 	v := reflect.ValueOf(model)
 	v = reflect.Indirect(v)
@@ -90,3 +93,9 @@ func InterfaceSlice(slice interface{}) []interface{} {
 func GetFieldByName(structPtr interface{}, fieldName string) reflect.Value {
 	return reflect.ValueOf(structPtr).Elem().FieldByName(fieldName)
 }
+
+// UuidMust returns a new valid nulls uuid, or panics if its unable to.
+func UuidMust() nulls.UUID {
+	return nulls.NewUUID(uuid.Must(uuid.NewV4()))
+}
+

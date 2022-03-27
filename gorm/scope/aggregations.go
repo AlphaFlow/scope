@@ -7,11 +7,10 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/alphaflow/scope/util"
 	"github.com/gobuffalo/buffalo"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
-
-	"github.com/alphaflow/api-core/destructify"
 )
 
 type Aggregation struct {
@@ -289,5 +288,5 @@ func getCustomGroupedAggregations(tx *gorm.DB, tableName string, customColumn, g
 		return nil, err
 	}
 
-	return destructify.InterfaceSlice(reflect.Indirect(typedStructArrayPtrWithDBTag).Interface()), nil
+	return util.InterfaceSlice(reflect.Indirect(typedStructArrayPtrWithDBTag).Interface()), nil
 }

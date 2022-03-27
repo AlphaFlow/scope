@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/alphaflow/api-core/destructify"
+	"github.com/alphaflow/scope/util"
 )
 
 // CustomColumn represents a SQL statement that can be used like a column in a SQL query. CustomColumns are used in order
@@ -182,15 +182,15 @@ func GenerateCustomColumnsForSubobject(subobjectPtr interface{}, subobjectJsonTa
 
 	customColumns := CustomColumns{}
 
-	fields := destructify.ValuesForStructTag(subobject, "json")
+	fields := util.ValuesForStructTag(subobject, "json")
 	for _, col := range fields {
-		field, ok := destructify.FieldWithJsonTagValue(subobject, col)
+		field, ok := util.FieldWithJsonTagValue(subobject, col)
 		if !ok {
 			continue
 		}
 
 		// Look up the database column name for this field.
-		dbColumn, ok := destructify.LookupForStructFieldTag(subobject, field, "db")
+		dbColumn, ok := util.LookupForStructFieldTag(subobject, field, "db")
 		if !ok || dbColumn == "-" {
 			continue
 		}
@@ -204,7 +204,7 @@ func GenerateCustomColumnsForSubobject(subobjectPtr interface{}, subobjectJsonTa
 
 		customColumn := CustomColumn{
 			Name:       fmt.Sprintf("%v.%v", subobjectJsonTag, col),
-			ResultType: destructify.GetFieldByName(subobjectPtr, field).Type(),
+			ResultType: util.GetFieldByName(subobjectPtr, field).Type(),
 
 			// Select [field_db_tag] from [subobject tablename] where [join clause]
 			Statement: fmt.Sprintf("(select %v from %v where %v)", dbColumn, tablename, joinClause),
@@ -234,21 +234,21 @@ func getAllQueryableColumns(modelPtr interface{}) ([]CustomColumn, error) {
 	validColumns := make([]CustomColumn, 0)
 
 	// Get all of the json tags that are exposed to the user.
-	structJsonTags := destructify.ValuesForStructTag(model, "json")
+	structJsonTags := util.ValuesForStructTag(model, "json")
 	for i, structJsonTag := range structJsonTags {
-		structFieldName, ok := destructify.FieldWithJsonTagValue(model, structJsonTag)
+		structFieldName, ok := util.FieldWithJsonTagValue(model, structJsonTag)
 		if !ok {
 			continue
 		}
 
-		dbColumn, ok := destructify.LookupForStructFieldTag(model, structFieldName, "db")
+		dbColumn, ok := util.LookupForStructFieldTag(model, structFieldName, "db")
 		if !ok || dbColumn == "-" {
 			continue
 		}
 
 		customColumn := CustomColumn{
 			Name:       structJsonTags[i],
-			ResultType: destructify.GetFieldByName(modelPtr, structFieldName).Type(),
+			ResultType: util.GetFieldByName(modelPtr, structFieldName).Type(),
 			Statement:  fmt.Sprintf("%v.%v", tableName, dbColumn),
 		}
 

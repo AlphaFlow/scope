@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/gobuffalo/buffalo"
-	"github.com/gobuffalo/pop/v5"
 	"github.com/pkg/errors"
+	"gorm.io/gorm"
 
 	"github.com/alphaflow/api-core/stringsutil"
 )
@@ -50,7 +50,7 @@ var sortDirections = map[string]string{
 }
 
 // ForFiltersFromParams filters a model based on the provided filter params.
-func ForFiltersFromParams(ctx context.Context, model interface{}, params buffalo.ParamValues) (pop.ScopeFunc, error) {
+func ForFiltersFromParams(ctx context.Context, model interface{}, params buffalo.ParamValues) (ScopeFunc, error) {
 	v := reflect.ValueOf(model)
 	if v.Kind() != reflect.Struct {
 		return nil, errors.New("struct expected")
@@ -73,10 +73,12 @@ func ForFiltersFromParams(ctx context.Context, model interface{}, params buffalo
 	if !stringsutil.IsBlank(params.Get("filter_columns")) {
 		columns = strings.Split(params.Get("filter_columns"), filterSeparator)
 	}
+
 	types := make([]string, 0)
 	if !stringsutil.IsBlank(params.Get("filter_types")) {
 		types = strings.Split(params.Get("filter_types"), filterSeparator)
 	}
+
 	leftParens := make([]string, 0)
 	if !stringsutil.IsBlank(params.Get("filter_left_parens")) {
 		leftParens = strings.Split(params.Get("filter_left_parens"), filterSeparator)
@@ -95,7 +97,7 @@ func ForFiltersFromParams(ctx context.Context, model interface{}, params buffalo
 
 	// If nothing is specified, this is a no-op.
 	if len(columns) == 0 && len(types) == 0 && len(values) == 1 && len(logic) == 0 && len(leftParens) == 0 && len(rightParens) == 0 {
-		return func(q *pop.Query) *pop.Query {
+		return func(q *gorm.DB) *gorm.DB {
 			return q
 		}, nil
 	}
@@ -185,7 +187,7 @@ func ForFiltersFromParams(ctx context.Context, model interface{}, params buffalo
 	// Wrap our query string in parens, so its always evaluated as 1 expression and cannot conflict with other scopes.
 	queryString = fmt.Sprintf("(%s)", queryString)
 
-	return func(q *pop.Query) *pop.Query {
+	return func(q *gorm.DB) *gorm.DB {
 		return q.Where(queryString, args...)
 	}, nil
 }
@@ -219,8 +221,8 @@ func filterOperatorHasArgs(operator string) bool {
 }
 
 // ForOrder is a generic scope function for ordering.
-func ForOrder(orderClauses ...string) pop.ScopeFunc {
-	return func(q *pop.Query) *pop.Query {
+func ForOrder(orderClauses ...string) ScopeFunc {
+	return func(q *gorm.DB) *gorm.DB {
 		for _, clause := range orderClauses {
 			q.Order(clause)
 		}
@@ -229,7 +231,7 @@ func ForOrder(orderClauses ...string) pop.ScopeFunc {
 }
 
 // ForSortFromParams orders a query based on the provided query params.
-func ForSortFromParams(ctx context.Context, model interface{}, params buffalo.ParamValues) (pop.ScopeFunc, error) {
+func ForSortFromParams(ctx context.Context, model interface{}, params buffalo.ParamValues) (ScopeFunc, error) {
 	v := reflect.ValueOf(model)
 	if v.Kind() != reflect.Struct {
 		return nil, errors.New("struct expected")
@@ -248,7 +250,7 @@ func ForSortFromParams(ctx context.Context, model interface{}, params buffalo.Pa
 
 	// If nothing is specified, this is a no-op.
 	if len(columns) == 0 && len(directions) == 0 {
-		return func(q *pop.Query) *pop.Query {
+		return func(q *gorm.DB) *gorm.DB {
 			return q
 		}, nil
 	}
@@ -289,8 +291,9 @@ func ForSortFromParams(ctx context.Context, model interface{}, params buffalo.Pa
 }
 
 // ForPaginateFromParams paginates a query based on a list of parameters, generally c.Params()
-func ForPaginateFromParams(params buffalo.ParamValues) pop.ScopeFunc {
-	return func(q *pop.Query) *pop.Query {
-		return q.PaginateFromParams(params)
+func ForPaginateFromParams(params buffalo.ParamValues) ScopeFunc {
+	return func(q *gorm.DB) *gorm.DB {
+		p := NewPaginatorFromParams(params)
+		return q.Offset(p.Offset).Limit(p.PerPage)
 	}
 }

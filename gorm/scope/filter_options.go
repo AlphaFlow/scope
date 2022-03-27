@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"strings"
 
-	"github.com/gobuffalo/pop/v5"
 	"github.com/pkg/errors"
+	"gorm.io/gorm"
 
 	"github.com/alphaflow/api-core/destructify"
 )
@@ -15,7 +16,7 @@ import (
 // filterOptionsQueryResult is a struct with an interface column.  The type of interface is swapped out using
 // reflection in getCustomFilterOptions in order to be able to scan DB values into any type as needed.
 type filterOptionsQueryResult struct {
-	Result interface{} `db:"result"`
+	Result interface{} `db:"result" gorm:"column:result"`
 }
 
 // GetFilterOptions returns all of unique values for column 'columnName' of modelsPtr, restricting by the scope collection
@@ -23,7 +24,7 @@ type filterOptionsQueryResult struct {
 //
 // 'columnName' is either a CustomColumn returned by the CustomFilterable interface, or a field specified by the json
 // tag.  This is the same as the acceptable values for 'filter_columns' in ForFiltersFromParams.
-func GetFilterOptions(ctx context.Context, tx *pop.Connection, modelsPtr interface{}, columnName string, scopes *Collection) ([]interface{}, error) {
+func GetFilterOptions(ctx context.Context, tx *gorm.DB, modelsPtr interface{}, columnName string, scopes *Collection) ([]interface{}, error) {
 	v := reflect.ValueOf(modelsPtr)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Slice {
 		return nil, errors.New("pointer to slice expected")
@@ -49,7 +50,7 @@ func GetFilterOptions(ctx context.Context, tx *pop.Connection, modelsPtr interfa
 		return nil, errors.Errorf("invalid filter field: %v", columnName)
 	}
 
-	tableName := (&pop.Model{Value: modelPtr}).TableName()
+	tableName := TableName(modelPtr)
 	return getCustomFilterOptions(tx, tableName, *column, scopes)
 }
 
@@ -58,8 +59,7 @@ func GetFilterOptions(ctx context.Context, tx *pop.Connection, modelsPtr interfa
 //
 // In order to do this, we must build a custom struct with the correct ResultType for customColumn.  We then build a
 // scoped GROUP BY query to retrieve all values for customColumn into that struct.
-func getCustomFilterOptions(tx *pop.Connection, tableName string, customColumn CustomColumn, scopes *Collection) ([]interface{}, error) {
-	type __stub__ struct{}
+func getCustomFilterOptions(tx *gorm.DB, tableName string, customColumn CustomColumn, scopes *Collection) ([]interface{}, error) {
 	clauses := ""
 
 	// We need to build a struct of type "ResultType", so that we can correctly marshall the output types from the DB.
@@ -78,9 +78,13 @@ func getCustomFilterOptions(tx *pop.Connection, tableName string, customColumn C
 	}
 
 	// Covert this query to a GROUP BY query in order to only get distinct results.
-	scopeQueryFunc := filterOptionScopes.Flatten()(tx.Q()).GroupBy(templateStructFieldDBTag)
-	scopeQuerySQL, scopeQueryArgs := scopeQueryFunc.ToSQL(&pop.Model{Value: __stub__{}})
-	stubRegex := regexp.MustCompile(`^SELECT\s+FROM stubs AS stubs\s+`)
+	q := tx.Session(&gorm.Session{DryRun: true}).Model(__stub__{})
+	q.Statement.SQL.Reset()
+	scopeQueryFunc := filterOptionScopes.Flatten()(q).Group(templateStructFieldDBTag).Find(q.Statement.Model)
+	scopeQuerySQL := scopeQueryFunc.Statement.SQL.String()
+	scopeQuerySQL = strings.Replace(scopeQuerySQL, "SELECT *", "SELECT ", 1)
+	scopeQueryArgs := scopeQueryFunc.Statement.Vars
+	stubRegex := regexp.MustCompile(stubRegex)
 	clauses = stubRegex.ReplaceAllString(scopeQuerySQL, "")
 
 	// Strip all order by columns out of the query, since they don't matter and will break our GROUP BY.
@@ -88,7 +92,7 @@ func getCustomFilterOptions(tx *pop.Connection, tableName string, customColumn C
 	clauses = orderRegex.ReplaceAllString(clauses, "")
 
 	generatedStatement := fmt.Sprintf("select %v as result from %v %v", customColumn.Statement, tableName, clauses)
-	err := tx.RawQuery(generatedStatement, scopeQueryArgs...).All(typedStructArrayPtrWithDBTag.Interface())
+	err := tx.Raw(generatedStatement, scopeQueryArgs...).Find(typedStructArrayPtrWithDBTag.Interface()).Error
 	if err != nil {
 		return nil, err
 	}

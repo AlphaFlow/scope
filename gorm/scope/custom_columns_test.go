@@ -7,12 +7,12 @@ import (
 	"github.com/gobuffalo/nulls"
 	"github.com/gofrs/uuid"
 
-	"github.com/alphaflow/api-core/buffalo/scope"
+	"github.com/alphaflow/api-core/gorm/scope"
 )
 
 type TestObjectWithOverride struct {
-	ID       uuid.UUID  `json:"id" db:"id"`
-	ObjectId nulls.UUID `json:"object_id" db:"object_id"`
+	ID       uuid.UUID  `json:"id" db:"id" gorm:"primaryKey;column:id"`
+	ObjectId nulls.UUID `json:"object_id" db:"object_id" gorm:"column:object_id"`
 }
 
 func (t TestObjectWithOverride) GetCustomFilters(ctx context.Context) scope.CustomColumns {
@@ -34,8 +34,8 @@ func (t TestObjectWithOverride) GetCustomSorts(ctx context.Context) scope.Custom
 }
 
 type TestSubObject struct {
-	ID       uuid.UUID  `json:"id" db:"id"`
-	ObjectId nulls.UUID `json:"object_id" db:"object_id"`
+	ID       uuid.UUID  `json:"id" db:"id" gorm:"primaryKey;column:id"`
+	ObjectId nulls.UUID `json:"object_id" db:"object_id" gorm:"column:object_id"`
 }
 
 func (ss *ScopesSuite) TestGetAllFilterColumns() {

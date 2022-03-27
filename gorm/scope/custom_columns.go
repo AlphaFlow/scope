@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/gobuffalo/pop/v5"
-
 	"github.com/alphaflow/api-core/destructify"
 )
 
@@ -201,8 +199,7 @@ func GenerateCustomColumnsForSubobject(subobjectPtr interface{}, subobjectJsonTa
 		if len(optionalTablename) > 0 {
 			tablename = optionalTablename[0]
 		} else {
-			m := &pop.Model{Value: subobject}
-			tablename = m.TableName()
+			tablename = TableName(subobject)
 		}
 
 		customColumn := CustomColumn{
@@ -230,7 +227,7 @@ func getAllQueryableColumns(modelPtr interface{}) ([]CustomColumn, error) {
 	}
 
 	// Fetch the associated table for this model.
-	tableName := (&pop.Model{Value: modelPtr}).TableName()
+	tableName := TableName(modelPtr)
 
 	model := v.Elem().Interface()
 

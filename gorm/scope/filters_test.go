@@ -8,18 +8,18 @@ import (
 	"testing"
 
 	"github.com/gobuffalo/nulls"
-	"github.com/gobuffalo/pop/v5"
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
+	"gorm.io/gorm"
 
-	"github.com/alphaflow/api-core/buffalo/scope"
+	"github.com/alphaflow/api-core/gorm/scope"
 )
 
 type TestModel struct {
-	ID        uuid.UUID  `json:"id" db:"id"`
-	Nuid      nulls.UUID `json:"null_id" db:"db_null_id"`
-	NotInDb   int        `json:"not_in_db" db:"-"`
-	NotInJson int        `json:"-" db:"not_in_json"`
+	ID        uuid.UUID  `json:"id" db:"id" gorm:"primaryKey;column:id"`
+	Nuid      nulls.UUID `json:"null_id" db:"db_null_id" gorm:"column:db_null_id"`
+	NotInDb   int        `json:"not_in_db" db:"-" gorm:"-"`
+	NotInJson int        `json:"-" db:"not_in_json" gorm:"column:not_in_json"`
 }
 
 func (t TestModel) GetCustomFilters(ctx context.Context) scope.CustomColumns {
@@ -41,8 +41,10 @@ func (t TestModel) GetCustomSorts(ctx context.Context) scope.CustomColumns {
 
 func (ss *ScopesSuite) TestForFiltersFromParams() {
 	tm := TestModel{}
-	pm := &pop.Model{Value: tm}
-	baseQuery, _ := ss.DB.Q().ToSQL(pm)
+	q := ss.DB.Session(&gorm.Session{DryRun: true}).Model(tm)
+	q.Statement.SQL.Reset()
+	scopeQueryFunc := q.Find(&tm)
+	baseQuery := scopeQueryFunc.Statement.SQL.String()
 
 	testCases := []struct {
 		Name          string
@@ -508,7 +510,12 @@ func (ss *ScopesSuite) TestForFiltersFromParams() {
 			}
 
 			assert.NoError(t, err)
-			query, args := ss.DB.Q().Scope(s).ToSQL(pm)
+			q := ss.DB.Session(&gorm.Session{DryRun: true}).Model(tm)
+			q.Statement.SQL.Reset()
+			scopeQueryFunc := q.Scopes(s).Find(&tm)
+
+			args := scopeQueryFunc.Statement.Vars
+			query := scopeQueryFunc.Statement.SQL.String()
 			assert.Equal(t, testCase.ExpectedQuery, query)
 			assert.Equal(t, len(testCase.ExpectedArgs), len(args))
 
@@ -521,8 +528,10 @@ func (ss *ScopesSuite) TestForFiltersFromParams() {
 
 func (ss *ScopesSuite) TestForOrderFromParams() {
 	tm := TestModel{}
-	pm := &pop.Model{Value: tm}
-	baseQuery, _ := ss.DB.Q().ToSQL(pm)
+	q := ss.DB.Session(&gorm.Session{DryRun: true}).Model(tm)
+	q.Statement.SQL.Reset()
+	scopeQueryFunc := q.Find(&tm)
+	baseQuery := scopeQueryFunc.Statement.SQL.String()
 
 	testCases := []struct {
 		Name          string
@@ -597,7 +606,7 @@ func (ss *ScopesSuite) TestForOrderFromParams() {
 				"sort_directions": {"asc|desc"},
 			},
 			ExpectErr:     false,
-			ExpectedQuery: fmt.Sprintf("%s ORDER BY test_models.id ASC, test_models.db_null_id DESC", baseQuery),
+			ExpectedQuery: fmt.Sprintf("%s ORDER BY test_models.id ASC,test_models.db_null_id DESC", baseQuery),
 		},
 		{
 			Name: "Multiple Sorts Mismatched Fields",
@@ -626,8 +635,11 @@ func (ss *ScopesSuite) TestForOrderFromParams() {
 			}
 
 			assert.NoError(t, err)
+			q := ss.DB.Session(&gorm.Session{DryRun: true}).Model(tm)
+			q.Statement.SQL.Reset()
+			scopeQueryFunc := q.Scopes(s).Find(&tm)
 
-			query, _ := ss.DB.Q().Scope(s).ToSQL(pm)
+			query := scopeQueryFunc.Statement.SQL.String()
 			assert.Equal(t, testCase.ExpectedQuery, query)
 		})
 	}

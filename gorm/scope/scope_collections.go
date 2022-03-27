@@ -4,21 +4,22 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"regexp"
+	"strings"
 
-	"github.com/gobuffalo/pop/v5"
 	"github.com/pkg/errors"
+	"gorm.io/gorm"
 
 	"github.com/alphaflow/api-core/reflectify"
 )
 
 type Collection struct {
-	tx     *pop.Connection
-	scopes []pop.ScopeFunc
+	tx     *gorm.DB
+	scopes []ScopeFunc
 }
 
-func NewCollection(tx ...*pop.Connection) *Collection {
+func NewCollection(tx ...*gorm.DB) *Collection {
 	sc := &Collection{}
-	sc.scopes = make([]pop.ScopeFunc, 0)
+	sc.scopes = make([]ScopeFunc, 0)
 
 	if len(tx) > 0 && tx[0] != nil {
 		sc.tx = tx[0]
@@ -27,12 +28,12 @@ func NewCollection(tx ...*pop.Connection) *Collection {
 	return sc
 }
 
-func (sc *Collection) Get() []pop.ScopeFunc {
+func (sc *Collection) Get() []ScopeFunc {
 	return sc.scopes
 }
 
-func (sc *Collection) Flatten() pop.ScopeFunc {
-	scopeFunc := func(q *pop.Query) *pop.Query {
+func (sc *Collection) Flatten() ScopeFunc {
+	scopeFunc := func(q *gorm.DB) *gorm.DB {
 		for _, sf := range sc.Dedupe().Get() {
 			q = sf(q)
 		}
@@ -53,19 +54,21 @@ func (sc *Collection) Dedupe() *Collection {
 	return sc
 }
 
-func (sc *Collection) Push(scopes ...pop.ScopeFunc) *Collection {
+func (sc *Collection) Push(scopes ...ScopeFunc) *Collection {
 	sc.scopes = append(sc.scopes, scopes...)
 
 	return sc
 }
 
-func dedupeScopes(tx *pop.Connection, scopes ...pop.ScopeFunc) []pop.ScopeFunc {
-	type __stub__ struct{}
-	dedupedScopeMap := make(map[string]pop.ScopeFunc)
+func dedupeScopes(tx *gorm.DB, scopes ...ScopeFunc) []ScopeFunc {
+	dedupedScopeMap := make(map[string]ScopeFunc)
 	for _, s := range scopes {
-		scopeQueryFunc := s(tx.Q())
-		scopeQuerySQL, _ := scopeQueryFunc.ToSQL(&pop.Model{Value: __stub__{}})
-		regex := regexp.MustCompile(`^SELECT\s{1,}FROM stubs AS stubs\s{1,}`)
+		q := tx.Session(&gorm.Session{DryRun: true, NewDB: true, SkipHooks: true}).Model(__stub__{})
+		q.Statement.SQL.Reset()
+		scopeQueryFunc := s(q).Find(q.Statement.Model)
+		scopeQuerySQL := scopeQueryFunc.Statement.SQL.String()
+		scopeQuerySQL = strings.Replace(scopeQuerySQL, "SELECT *", "SELECT ", 1)
+		regex := regexp.MustCompile(stubRegexAlt)
 		scopeQueryRaw := regex.ReplaceAllString(scopeQuerySQL, "")
 
 		hash := md5HashForString(scopeQueryRaw)
@@ -73,7 +76,7 @@ func dedupeScopes(tx *pop.Connection, scopes ...pop.ScopeFunc) []pop.ScopeFunc {
 			dedupedScopeMap[hash] = s
 		}
 	}
-	sparseScopes := make([]pop.ScopeFunc, 0, len(dedupedScopeMap))
+	sparseScopes := make([]ScopeFunc, 0, len(dedupedScopeMap))
 	for _, s := range dedupedScopeMap {
 		sparseScopes = append(sparseScopes, s)
 	}

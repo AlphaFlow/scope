@@ -3,7 +3,7 @@ package scope_test
 import (
 	"testing"
 
-	"github.com/gobuffalo/suite/v3"
+	"github.com/alphaflow/api-core/testing/gorm/suite"
 )
 
 type ScopesSuite struct {

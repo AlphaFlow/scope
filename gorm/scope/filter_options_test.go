@@ -7,15 +7,15 @@ import (
 	"github.com/gobuffalo/nulls"
 	"github.com/gofrs/uuid"
 
-	"github.com/alphaflow/api-core/buffalo/scope"
+	"github.com/alphaflow/api-core/gorm/scope"
 )
 
 type TestObject struct {
-	ID        uuid.UUID  `json:"id" db:"id"`
-	Nuid      nulls.UUID `json:"null_id" db:"db_null_id"`
-	Number    float64    `json:"num" db:"num"`
-	NotInDb   int        `json:"not_in_db" db:"-"`
-	NotInJson int        `json:"-" db:"not_in_json"`
+	ID        uuid.UUID  `json:"id" db:"id" gorm:"primaryKey;column:id;default:uuid_generate_v4()"`
+	Nuid      nulls.UUID `json:"null_id" db:"db_null_id" gorm:"column:db_null_id"`
+	Number    float64    `json:"num" db:"num" gorm:"column:num"`
+	NotInDb   int        `json:"not_in_db" db:"-" gorm:"-"`
+	NotInJson int        `json:"-" db:"not_in_json" gorm:"column:not_in_json"`
 }
 
 func (t TestObject) TableName() string {
@@ -71,12 +71,12 @@ func (t TestObject) GetCustomSorts(ctx context.Context) scope.CustomColumns {
 }
 
 func (ss *ScopesSuite) TestGetFilterOptions() {
-	testObject := &TestObject{}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	filterOptions, err := scope.GetFilterOptions(context.Background(), ss.DB, &[]TestObject{}, "id", nil)
@@ -85,12 +85,12 @@ func (ss *ScopesSuite) TestGetFilterOptions() {
 }
 
 func (ss *ScopesSuite) TestGetFilterOptions_noNulls() {
-	testObject := &TestObject{}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	filterOptions, err := scope.GetFilterOptions(context.Background(), ss.DB, &[]TestObject{}, "null_id", nil)
@@ -99,12 +99,12 @@ func (ss *ScopesSuite) TestGetFilterOptions_noNulls() {
 }
 
 func (ss *ScopesSuite) TestGetFilterOptions_withScopes() {
-	testObject := &TestObject{}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	scopes := scope.NewCollection(ss.DB)
@@ -118,12 +118,12 @@ func (ss *ScopesSuite) TestGetFilterOptions_withScopes() {
 }
 
 func (ss *ScopesSuite) TestGetFilterOptions_withCustomFilters() {
-	testObject := &TestObject{}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	scopes := scope.NewCollection(ss.DB)
@@ -137,12 +137,12 @@ func (ss *ScopesSuite) TestGetFilterOptions_withCustomFilters() {
 }
 
 func (ss *ScopesSuite) TestGetFilterOptions_withCustomUUIDFilters() {
-	testObject := &TestObject{}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	scopes := scope.NewCollection(ss.DB)
@@ -156,12 +156,12 @@ func (ss *ScopesSuite) TestGetFilterOptions_withCustomUUIDFilters() {
 }
 
 func (ss *ScopesSuite) TestGetFilterOptions_withCustomNullsUUIDFilters() {
-	testObject := &TestObject{}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	scopes := scope.NewCollection(ss.DB)
@@ -175,12 +175,12 @@ func (ss *ScopesSuite) TestGetFilterOptions_withCustomNullsUUIDFilters() {
 }
 
 func (ss *ScopesSuite) TestGetFilterOptions_withCustomNullResult() {
-	testObject := &TestObject{}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObject{}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObject{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	scopes := scope.NewCollection(ss.DB)
@@ -194,10 +194,10 @@ func (ss *ScopesSuite) TestGetFilterOptions_withCustomNullResult() {
 }
 
 type TestObjectPtrTablename struct {
-	ID        uuid.UUID  `json:"id" db:"id"`
-	Nuid      nulls.UUID `json:"null_id" db:"db_null_id"`
-	NotInDb   int        `json:"not_in_db" db:"-"`
-	NotInJson int        `json:"-" db:"not_in_json"`
+	ID        uuid.UUID  `json:"id" db:"id" gorm:"primaryKey,column:id"`
+	Nuid      nulls.UUID `json:"null_id" db:"db_null_id" gorm:"column:db_null_id"`
+	NotInDb   int        `json:"not_in_db" db:"-" gorm:"-"`
+	NotInJson int        `json:"-" db:"not_in_json" gorm:"column:not_in_json"`
 }
 
 type TestObjectPtrTablenames []TestObjectPtrTablename
@@ -259,12 +259,12 @@ func (t TestObjectPtrTablename) GetCustomSorts(ctx context.Context) scope.Custom
 }
 
 func (ss *ScopesSuite) TestGetFilterOptions_ptrTablename() {
-	testObject := &TestObjectPtrTablename{}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObjectPtrTablename{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObjectPtrTablename{}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObjectPtrTablename{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	filterOptions, err := scope.GetFilterOptions(context.Background(), ss.DB, &TestObjectPtrTablenames{}, "id", nil)
@@ -273,12 +273,12 @@ func (ss *ScopesSuite) TestGetFilterOptions_ptrTablename() {
 }
 
 func (ss *ScopesSuite) TestGetFilterOptions_noNulls_ptrTablename() {
-	testObject := &TestObjectPtrTablename{}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObjectPtrTablename{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObjectPtrTablename{}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObjectPtrTablename{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	filterOptions, err := scope.GetFilterOptions(context.Background(), ss.DB, &TestObjectPtrTablenames{}, "null_id", nil)
@@ -287,12 +287,12 @@ func (ss *ScopesSuite) TestGetFilterOptions_noNulls_ptrTablename() {
 }
 
 func (ss *ScopesSuite) TestGetFilterOptions_withScopes_ptrTablename() {
-	testObject := &TestObjectPtrTablename{}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObjectPtrTablename{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObjectPtrTablename{}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObjectPtrTablename{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	scopes := scope.NewCollection(ss.DB)
@@ -306,12 +306,12 @@ func (ss *ScopesSuite) TestGetFilterOptions_withScopes_ptrTablename() {
 }
 
 func (ss *ScopesSuite) TestGetFilterOptions_withCustomFilters_ptrTablename() {
-	testObject := &TestObjectPtrTablename{}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObjectPtrTablename{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObjectPtrTablename{}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObjectPtrTablename{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	scopes := scope.NewCollection(ss.DB)
@@ -325,12 +325,12 @@ func (ss *ScopesSuite) TestGetFilterOptions_withCustomFilters_ptrTablename() {
 }
 
 func (ss *ScopesSuite) TestGetFilterOptions_withCustomUUIDFilters_ptrTablename() {
-	testObject := &TestObjectPtrTablename{}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObjectPtrTablename{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObjectPtrTablename{}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObjectPtrTablename{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	scopes := scope.NewCollection(ss.DB)
@@ -344,12 +344,12 @@ func (ss *ScopesSuite) TestGetFilterOptions_withCustomUUIDFilters_ptrTablename()
 }
 
 func (ss *ScopesSuite) TestGetFilterOptions_withCustomNullsUUIDFilters_ptrTablename() {
-	testObject := &TestObjectPtrTablename{}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObjectPtrTablename{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObjectPtrTablename{}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObjectPtrTablename{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	scopes := scope.NewCollection(ss.DB)
@@ -363,12 +363,12 @@ func (ss *ScopesSuite) TestGetFilterOptions_withCustomNullsUUIDFilters_ptrTablen
 }
 
 func (ss *ScopesSuite) TestGetFilterOptions_withCustomNullResult_ptrTablename() {
-	testObject := &TestObjectPtrTablename{}
-	err := ss.DB.Create(testObject)
+	testObject := &TestObjectPtrTablename{ID: uuid.Must(uuid.NewV4())}
+	err := ss.DB.Create(testObject).Error
 	ss.NoError(err)
 
-	testObject2 := &TestObjectPtrTablename{}
-	err = ss.DB.Create(testObject2)
+	testObject2 := &TestObjectPtrTablename{ID: uuid.Must(uuid.NewV4())}
+	err = ss.DB.Create(testObject2).Error
 	ss.NoError(err)
 
 	scopes := scope.NewCollection(ss.DB)

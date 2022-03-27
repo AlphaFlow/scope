@@ -3,7 +3,6 @@ package scope_test
 import (
 	"github.com/alphaflow/scope"
 	"github.com/gofrs/uuid"
-
 )
 
 func (ss *ScopesSuite) TestNewIdSet() {

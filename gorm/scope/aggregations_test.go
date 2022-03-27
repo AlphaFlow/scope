@@ -10,7 +10,6 @@ import (
 	"github.com/gofrs/uuid"
 	"gorm.io/gorm"
 
-
 	"github.com/alphaflow/scope/gorm/scope"
 )
 

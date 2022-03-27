@@ -12,7 +12,8 @@ import (
 // Placeholders for example.
 var tx *pop.Connection
 var r render.Engine
-type ToDo struct {}  // Placeholder "Model"
+
+type ToDo struct{} // Placeholder "Model"
 type ToDos ToDo
 type toDosResource struct{}
 

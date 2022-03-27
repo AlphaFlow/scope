@@ -98,4 +98,3 @@ func GetFieldByName(structPtr interface{}, fieldName string) reflect.Value {
 func UuidMust() nulls.UUID {
 	return nulls.NewUUID(uuid.Must(uuid.NewV4()))
 }
-

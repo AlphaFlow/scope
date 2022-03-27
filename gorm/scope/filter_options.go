@@ -10,7 +10,6 @@ import (
 	"github.com/alphaflow/scope/util"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
-
 )
 
 // filterOptionsQueryResult is a struct with an interface column.  The type of interface is swapped out using

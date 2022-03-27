@@ -2,6 +2,7 @@ package scope_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/url"
 
 	"github.com/gobuffalo/nulls"
@@ -26,7 +27,53 @@ func (ss *ScopesSuite) TestGetAggregationsFromParams_Count() {
 
 	aggregation, err := scope.GetAggregationsFromParams(context.Background(), ss.DB, &[]TestObject{}, url.Values(params), nil)
 	ss.NoError(err)
-	ss.Equal(2, aggregation)
+	ss.Equal(2, util.GetFieldByName(aggregation, "Result0").Interface())
+
+	jsn, err := json.Marshal(aggregation)
+	ss.NoError(err)
+	ss.Equal(`{"count_id":2}`, string(jsn))
+}
+
+func (ss *ScopesSuite) TestGetAggregationsFromParams_Count_multiple() {
+	testObject := &TestObject{}
+	err := ss.DB.Create(testObject)
+	ss.NoError(err)
+
+	testObject2 := &TestObject{}
+	err = ss.DB.Create(testObject2)
+	ss.NoError(err)
+
+	params := map[string][]string{
+		"aggregation_column": {"id|num"},
+		"aggregation_type":   {"count|count"},
+	}
+
+	aggregation, err := scope.GetAggregationsFromParams(context.Background(), ss.DB, &[]TestObject{}, url.Values(params), nil)
+	ss.NoError(err)
+	ss.Equal(2, util.GetFieldByName(aggregation, "Result0").Interface())
+	ss.Equal(2, util.GetFieldByName(aggregation, "Result1").Interface())
+
+	jsn, err := json.Marshal(aggregation)
+	ss.NoError(err)
+	ss.Equal(`{"count_id":2,"count_num":2}`, string(jsn))
+}
+
+func (ss *ScopesSuite) TestGetAggregationsFromParams_Count_duplicate() {
+	testObject := &TestObject{}
+	err := ss.DB.Create(testObject)
+	ss.NoError(err)
+
+	testObject2 := &TestObject{}
+	err = ss.DB.Create(testObject2)
+	ss.NoError(err)
+
+	params := map[string][]string{
+		"aggregation_column": {"id|id"},
+		"aggregation_type":   {"count|count"},
+	}
+
+	_, err = scope.GetAggregationsFromParams(context.Background(), ss.DB, &[]TestObject{}, url.Values(params), nil)
+	ss.Error(err)
 }
 
 func (ss *ScopesSuite) TestGetAggregationsFromParams_Count_scoped() {
@@ -48,7 +95,7 @@ func (ss *ScopesSuite) TestGetAggregationsFromParams_Count_scoped() {
 
 	aggregation, err := scope.GetAggregationsFromParams(context.Background(), ss.DB, &[]TestObject{}, url.Values(params), sc)
 	ss.NoError(err)
-	ss.Equal(1, aggregation)
+	ss.Equal(1, util.GetFieldByName(aggregation, "Result0").Interface())
 }
 
 func (ss *ScopesSuite) TestGetAggregationsFromParams_Sum() {
@@ -67,7 +114,7 @@ func (ss *ScopesSuite) TestGetAggregationsFromParams_Sum() {
 
 	aggregation, err := scope.GetAggregationsFromParams(context.Background(), ss.DB, &[]TestObject{}, url.Values(params), nil)
 	ss.NoError(err)
-	ss.Equal(float64(246), aggregation)
+	ss.Equal(float64(246), util.GetFieldByName(aggregation, "Result0").Interface())
 }
 
 func (ss *ScopesSuite) TestGetAggregationsFromParams_Avg() {
@@ -86,7 +133,7 @@ func (ss *ScopesSuite) TestGetAggregationsFromParams_Avg() {
 
 	aggregation, err := scope.GetAggregationsFromParams(context.Background(), ss.DB, &[]TestObject{}, url.Values(params), nil)
 	ss.NoError(err)
-	ss.Equal(float64(124), aggregation)
+	ss.Equal(float64(124), util.GetFieldByName(aggregation, "Result0").Interface())
 }
 
 func (ss *ScopesSuite) TestGetAggregationsFromParams_Max() {
@@ -105,7 +152,7 @@ func (ss *ScopesSuite) TestGetAggregationsFromParams_Max() {
 
 	aggregation, err := scope.GetAggregationsFromParams(context.Background(), ss.DB, &[]TestObject{}, url.Values(params), nil)
 	ss.NoError(err)
-	ss.Equal(float64(124), aggregation)
+	ss.Equal(float64(124), util.GetFieldByName(aggregation, "Result0").Interface())
 }
 
 func (ss *ScopesSuite) TestGetAggregationsFromParams_Min() {
@@ -124,7 +171,7 @@ func (ss *ScopesSuite) TestGetAggregationsFromParams_Min() {
 
 	aggregation, err := scope.GetAggregationsFromParams(context.Background(), ss.DB, &[]TestObject{}, url.Values(params), nil)
 	ss.NoError(err)
-	ss.Equal(float64(123), aggregation)
+	ss.Equal(float64(123), util.GetFieldByName(aggregation, "Result0").Interface())
 }
 
 func (ss *ScopesSuite) TestGetAggregations_Count() {
@@ -136,9 +183,9 @@ func (ss *ScopesSuite) TestGetAggregations_Count() {
 	err = ss.DB.Create(testObject2)
 	ss.NoError(err)
 
-	aggregation, err := scope.GetAggregations(context.Background(), ss.DB, &[]TestObject{}, "id", nil, scope.StandardAggregations[scope.StandardAggregationsTypeCount])
+	aggregation, err := scope.GetAggregations(context.Background(), ss.DB, &[]TestObject{}, []string{"id"}, nil, scope.Aggregations{scope.StandardAggregations[scope.StandardAggregationsTypeCount]})
 	ss.NoError(err)
-	ss.Equal(2, aggregation)
+	ss.Equal(2, util.GetFieldByName(aggregation, "Result0").Interface())
 }
 
 func (ss *ScopesSuite) TestGetAggregations_Count_scoped() {
@@ -153,9 +200,9 @@ func (ss *ScopesSuite) TestGetAggregations_Count_scoped() {
 	sc := scope.NewCollection(ss.DB)
 	sc.Push(scope.ForID(testObject.ID.String()))
 
-	aggregation, err := scope.GetAggregations(context.Background(), ss.DB, &[]TestObject{}, "id", sc, scope.StandardAggregations[scope.StandardAggregationsTypeCount])
+	aggregation, err := scope.GetAggregations(context.Background(), ss.DB, &[]TestObject{}, []string{"id"}, sc, scope.Aggregations{scope.StandardAggregations[scope.StandardAggregationsTypeCount]})
 	ss.NoError(err)
-	ss.Equal(1, aggregation)
+	ss.Equal(1, util.GetFieldByName(aggregation, "Result0").Interface())
 }
 
 func (ss *ScopesSuite) TestGetAggregations_Sum() {
@@ -167,9 +214,9 @@ func (ss *ScopesSuite) TestGetAggregations_Sum() {
 	err = ss.DB.Create(testObject2)
 	ss.NoError(err)
 
-	aggregation, err := scope.GetAggregations(context.Background(), ss.DB, &[]TestObject{}, "num", nil, scope.StandardAggregations[scope.StandardAggregationsTypeSum])
+	aggregation, err := scope.GetAggregations(context.Background(), ss.DB, &[]TestObject{}, []string{"num"}, nil, scope.Aggregations{scope.StandardAggregations[scope.StandardAggregationsTypeSum]})
 	ss.NoError(err)
-	ss.Equal(float64(246), aggregation)
+	ss.Equal(float64(246), util.GetFieldByName(aggregation, "Result0").Interface())
 }
 
 func (ss *ScopesSuite) TestGetAggregations_Avg() {
@@ -181,9 +228,9 @@ func (ss *ScopesSuite) TestGetAggregations_Avg() {
 	err = ss.DB.Create(testObject2)
 	ss.NoError(err)
 
-	aggregation, err := scope.GetAggregations(context.Background(), ss.DB, &[]TestObject{}, "num", nil, scope.StandardAggregations[scope.StandardAggregationsTypeAvg])
+	aggregation, err := scope.GetAggregations(context.Background(), ss.DB, &[]TestObject{}, []string{"num"}, nil, scope.Aggregations{scope.StandardAggregations[scope.StandardAggregationsTypeAvg]})
 	ss.NoError(err)
-	ss.Equal(float64(124), aggregation)
+	ss.Equal(float64(124), util.GetFieldByName(aggregation, "Result0").Interface())
 }
 
 func (ss *ScopesSuite) TestGetAggregations_Max() {
@@ -195,9 +242,9 @@ func (ss *ScopesSuite) TestGetAggregations_Max() {
 	err = ss.DB.Create(testObject2)
 	ss.NoError(err)
 
-	aggregation, err := scope.GetAggregations(context.Background(), ss.DB, &[]TestObject{}, "num", nil, scope.StandardAggregations[scope.StandardAggregationsTypeMax])
+	aggregation, err := scope.GetAggregations(context.Background(), ss.DB, &[]TestObject{}, []string{"num"}, nil, scope.Aggregations{scope.StandardAggregations[scope.StandardAggregationsTypeMax]})
 	ss.NoError(err)
-	ss.Equal(float64(124), aggregation)
+	ss.Equal(float64(124), util.GetFieldByName(aggregation, "Result0").Interface())
 }
 
 func (ss *ScopesSuite) TestGetAggregations_Min() {
@@ -209,9 +256,9 @@ func (ss *ScopesSuite) TestGetAggregations_Min() {
 	err = ss.DB.Create(testObject2)
 	ss.NoError(err)
 
-	aggregation, err := scope.GetAggregations(context.Background(), ss.DB, &[]TestObject{}, "num", nil, scope.StandardAggregations[scope.StandardAggregationsTypeMin])
+	aggregation, err := scope.GetAggregations(context.Background(), ss.DB, &[]TestObject{}, []string{"num"}, nil, scope.Aggregations{scope.StandardAggregations[scope.StandardAggregationsTypeMin]})
 	ss.NoError(err)
-	ss.Equal(float64(123), aggregation)
+	ss.Equal(float64(123), util.GetFieldByName(aggregation, "Result0").Interface())
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Count() {
@@ -234,8 +281,52 @@ func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Count() {
 
 	ss.Equal([]interface{}{struct {
 		Grouper float64 "db:\"grouper\""
-		Result  int     "db:\"result\""
-	}{Grouper: 0, Result: 2}}, aggregation)
+		Result0 int     "db:\"result0\" json:\"count_id\""
+	}{Grouper: 0, Result0: 2}}, aggregation)
+}
+
+func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Count_multiple() {
+	testObject := &TestObject{}
+	err := ss.DB.Create(testObject)
+	ss.NoError(err)
+
+	testObject2 := &TestObject{}
+	err = ss.DB.Create(testObject2)
+	ss.NoError(err)
+
+	params := map[string][]string{
+		"aggregation_column":         {"id|num"},
+		"aggregation_grouper_column": {"num"},
+		"aggregation_type":           {"count|count"},
+	}
+
+	aggregation, err := scope.GetGroupedAggregationsFromParams(context.Background(), ss.DB, &[]TestObject{}, url.Values(params), nil)
+	ss.NoError(err)
+
+	ss.Equal([]interface{}{struct {
+		Grouper float64 "db:\"grouper\""
+		Result0 int     "db:\"result0\" json:\"count_id\""
+		Result1 int     "db:\"result1\" json:\"count_num\""
+	}{Grouper: 0, Result0: 2, Result1: 2}}, aggregation)
+}
+
+func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Count_duplicate() {
+	testObject := &TestObject{}
+	err := ss.DB.Create(testObject)
+	ss.NoError(err)
+
+	testObject2 := &TestObject{}
+	err = ss.DB.Create(testObject2)
+	ss.NoError(err)
+
+	params := map[string][]string{
+		"aggregation_column":         {"id|id"},
+		"aggregation_grouper_column": {"num"},
+		"aggregation_type":           {"count|count"},
+	}
+
+	_, err = scope.GetGroupedAggregationsFromParams(context.Background(), ss.DB, &[]TestObject{}, url.Values(params), nil)
+	ss.Error(err)
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Count_grouped() {
@@ -257,11 +348,11 @@ func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Count_grouped() {
 	ss.NoError(err)
 	ss.ElementsMatch([]interface{}{struct {
 		Grouper float64 "db:\"grouper\""
-		Result  int     "db:\"result\""
-	}{Grouper: 0, Result: 1}, struct {
+		Result0 int     "db:\"result0\" json:\"count_id\""
+	}{Grouper: 0, Result0: 1}, struct {
 		Grouper float64 "db:\"grouper\""
-		Result  int     "db:\"result\""
-	}{Grouper: 1, Result: 1}}, aggregation)
+		Result0 int     "db:\"result0\" json:\"count_id\""
+	}{Grouper: 1, Result0: 1}}, aggregation)
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Sum() {
@@ -287,11 +378,11 @@ func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Sum() {
 	ss.NoError(err)
 	ss.ElementsMatch([]interface{}{struct {
 		Grouper float64 "db:\"grouper\""
-		Result  float64 "db:\"result\""
-	}{Grouper: 123, Result: 246}, struct {
+		Result0 float64 "db:\"result0\" json:\"sum_num\""
+	}{Grouper: 123, Result0: 246}, struct {
 		Grouper float64 "db:\"grouper\""
-		Result  float64 "db:\"result\""
-	}{Grouper: 124, Result: 124}}, aggregation)
+		Result0 float64 "db:\"result0\" json:\"sum_num\""
+	}{Grouper: 124, Result0: 124}}, aggregation)
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Avg() {
@@ -313,11 +404,11 @@ func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Avg() {
 	ss.NoError(err)
 	ss.ElementsMatch([]interface{}{struct {
 		Grouper float64 "db:\"grouper\""
-		Result  float64 "db:\"result\""
-	}{Grouper: 123, Result: 123}, struct {
+		Result0 float64 "db:\"result0\" json:\"avg_num\""
+	}{Grouper: 123, Result0: 123}, struct {
 		Grouper float64 "db:\"grouper\""
-		Result  float64 "db:\"result\""
-	}{Grouper: 125, Result: 125}}, aggregation)
+		Result0 float64 "db:\"result0\" json:\"avg_num\""
+	}{Grouper: 125, Result0: 125}}, aggregation)
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Max() {
@@ -340,8 +431,8 @@ func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Max() {
 	ss.NoError(err)
 	ss.Equal([]interface{}{struct {
 		Grouper nulls.UUID "db:\"grouper\""
-		Result  float64    "db:\"result\""
-	}{Grouper: nuid, Result: 124}}, aggregation)
+		Result0 float64    "db:\"result0\" json:\"max_num\""
+	}{Grouper: nuid, Result0: 124}}, aggregation)
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Min() {
@@ -364,8 +455,8 @@ func (ss *ScopesSuite) TestGetGroupedAggregationsFromParams_Min() {
 	ss.NoError(err)
 	ss.Equal([]interface{}{struct {
 		Grouper nulls.UUID "db:\"grouper\""
-		Result  float64    "db:\"result\""
-	}{Grouper: nuid, Result: 123}}, aggregation)
+		Result0 float64    "db:\"result0\" json:\"min_num\""
+	}{Grouper: nuid, Result0: 123}}, aggregation)
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregations_Count() {
@@ -377,12 +468,13 @@ func (ss *ScopesSuite) TestGetGroupedAggregations_Count() {
 	err = ss.DB.Create(testObject2)
 	ss.NoError(err)
 
-	aggregation, err := scope.GetGroupedAggregations(context.Background(), ss.DB, &[]TestObject{}, "id", "num", nil, scope.StandardAggregations[scope.StandardAggregationsTypeCount])
+	aggregations := scope.Aggregations{scope.StandardAggregations[scope.StandardAggregationsTypeCount]}
+	aggregation, err := scope.GetGroupedAggregations(context.Background(), ss.DB, &[]TestObject{}, []string{"id"}, "num", nil, aggregations)
 	ss.NoError(err)
 	ss.Equal([]interface{}{struct {
 		Grouper float64 "db:\"grouper\""
-		Result  int     "db:\"result\""
-	}{Grouper: 0, Result: 2}}, aggregation)
+		Result0 int     "db:\"result0\" json:\"count_id\""
+	}{Grouper: 0, Result0: 2}}, aggregation)
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregations_Count_scoped() {
@@ -397,12 +489,13 @@ func (ss *ScopesSuite) TestGetGroupedAggregations_Count_scoped() {
 	sc := scope.NewCollection(ss.DB)
 	sc.Push(scope.ForID(testObject.ID.String()))
 
-	aggregation, err := scope.GetGroupedAggregations(context.Background(), ss.DB, &[]TestObject{}, "id", "num", sc, scope.StandardAggregations[scope.StandardAggregationsTypeCount])
+	aggregations := scope.Aggregations{scope.StandardAggregations[scope.StandardAggregationsTypeCount]}
+	aggregation, err := scope.GetGroupedAggregations(context.Background(), ss.DB, &[]TestObject{}, []string{"id"}, "num", sc, aggregations)
 	ss.NoError(err)
 	ss.Equal([]interface{}{struct {
 		Grouper float64 "db:\"grouper\""
-		Result  int     "db:\"result\""
-	}{Grouper: 0, Result: 1}}, aggregation)
+		Result0 int     "db:\"result0\" json:\"count_id\""
+	}{Grouper: 0, Result0: 1}}, aggregation)
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregations_Sum() {
@@ -418,15 +511,16 @@ func (ss *ScopesSuite) TestGetGroupedAggregations_Sum() {
 	err = ss.DB.Create(testObject3)
 	ss.NoError(err)
 
-	aggregation, err := scope.GetGroupedAggregations(context.Background(), ss.DB, &[]TestObject{}, "num", "num", nil, scope.StandardAggregations[scope.StandardAggregationsTypeSum])
+	aggregations := scope.Aggregations{scope.StandardAggregations[scope.StandardAggregationsTypeSum]}
+	aggregation, err := scope.GetGroupedAggregations(context.Background(), ss.DB, &[]TestObject{}, []string{"num"}, "num", nil, aggregations)
 	ss.NoError(err)
 	ss.ElementsMatch([]interface{}{struct {
 		Grouper float64 "db:\"grouper\""
-		Result  float64 "db:\"result\""
-	}{Grouper: 123, Result: 246}, struct {
+		Result0 float64 "db:\"result0\" json:\"sum_num\""
+	}{Grouper: 123, Result0: 246}, struct {
 		Grouper float64 "db:\"grouper\""
-		Result  float64 "db:\"result\""
-	}{Grouper: 124, Result: 124}}, aggregation)
+		Result0 float64 "db:\"result0\" json:\"sum_num\""
+	}{Grouper: 124, Result0: 124}}, aggregation)
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregations_Avg() {
@@ -438,16 +532,17 @@ func (ss *ScopesSuite) TestGetGroupedAggregations_Avg() {
 	err = ss.DB.Create(testObject2)
 	ss.NoError(err)
 
-	aggregation, err := scope.GetGroupedAggregations(context.Background(), ss.DB, &[]TestObject{}, "num", "num", nil, scope.StandardAggregations[scope.StandardAggregationsTypeAvg])
+	aggregations := scope.Aggregations{scope.StandardAggregations[scope.StandardAggregationsTypeAvg]}
+	aggregation, err := scope.GetGroupedAggregations(context.Background(), ss.DB, &[]TestObject{}, []string{"num"}, "num", nil, aggregations)
 	ss.NoError(err)
 
 	ss.ElementsMatch([]interface{}{struct {
 		Grouper float64 "db:\"grouper\""
-		Result  float64 "db:\"result\""
-	}{Grouper: 123, Result: 123}, struct {
+		Result0 float64 "db:\"result0\" json:\"avg_num\""
+	}{Grouper: 123, Result0: 123}, struct {
 		Grouper float64 "db:\"grouper\""
-		Result  float64 "db:\"result\""
-	}{Grouper: 125, Result: 125}}, aggregation)
+		Result0 float64 "db:\"result0\" json:\"avg_num\""
+	}{Grouper: 125, Result0: 125}}, aggregation)
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregations_Max() {
@@ -460,12 +555,13 @@ func (ss *ScopesSuite) TestGetGroupedAggregations_Max() {
 	err = ss.DB.Create(testObject2)
 	ss.NoError(err)
 
-	aggregation, err := scope.GetGroupedAggregations(context.Background(), ss.DB, &[]TestObject{}, "num", "null_id", nil, scope.StandardAggregations[scope.StandardAggregationsTypeMax])
+	aggregations := scope.Aggregations{scope.StandardAggregations[scope.StandardAggregationsTypeMax]}
+	aggregation, err := scope.GetGroupedAggregations(context.Background(), ss.DB, &[]TestObject{}, []string{"num"}, "null_id", nil, aggregations)
 	ss.NoError(err)
 	ss.Equal([]interface{}{struct {
 		Grouper nulls.UUID "db:\"grouper\""
-		Result  float64    "db:\"result\""
-	}{Grouper: nuid, Result: 124}}, aggregation)
+		Result0 float64    "db:\"result0\" json:\"max_num\""
+	}{Grouper: nuid, Result0: 124}}, aggregation)
 }
 
 func (ss *ScopesSuite) TestGetGroupedAggregations_Min() {
@@ -478,10 +574,11 @@ func (ss *ScopesSuite) TestGetGroupedAggregations_Min() {
 	err = ss.DB.Create(testObject2)
 	ss.NoError(err)
 
-	aggregation, err := scope.GetGroupedAggregations(context.Background(), ss.DB, &[]TestObject{}, "num", "null_id", nil, scope.StandardAggregations[scope.StandardAggregationsTypeMin])
+	aggregations := scope.Aggregations{scope.StandardAggregations[scope.StandardAggregationsTypeMin]}
+	aggregation, err := scope.GetGroupedAggregations(context.Background(), ss.DB, &[]TestObject{}, []string{"num"}, "null_id", nil, aggregations)
 	ss.NoError(err)
 	ss.Equal([]interface{}{struct {
 		Grouper nulls.UUID "db:\"grouper\""
-		Result  float64    "db:\"result\""
-	}{Grouper: nuid, Result: 123}}, aggregation)
+		Result0 float64    "db:\"result0\" json:\"min_num\""
+	}{Grouper: nuid, Result0: 123}}, aggregation)
 }
